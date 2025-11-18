@@ -19,6 +19,7 @@ from .rx7900XtModel import RX7900XTModel
 from .rx7900GreModel import RX7900GREModel
 from .rx7800XtModel import RX7800XTModel
 from .rx7700XtModel import RX7700XTModel
+from .ultraDetailedGpuModel import UltraDetailedGPUModel
 
 GPU_MODELS = {
     "RTX 4090 (Ada – AD102-300)": RTX4090Model,
@@ -32,6 +33,7 @@ GPU_MODELS = {
     "RX 7900 GRE (RDNA3 – Navi 33)": RX7900GREModel,
     "RX 7800 XT (RDNA3 – Navi 32)": RX7800XTModel,
     "RX 7700 XT (RDNA3 – Navi 32)": RX7700XTModel,
+    "NVIDIA H100 SXM5 - Ultra Detailed (Interactive)": UltraDetailedGPUModel,
 }
 
 def get_gpu_model(model_name: str, view3d_instance) -> BaseGPUModel:
@@ -52,6 +54,7 @@ def get_gpu_model(model_name: str, view3d_instance) -> BaseGPUModel:
         "RX 7900 GRE (RDNA3 – Navi 33)": RX7900GREModel,
         "RX 7800 XT (RDNA3 – Navi 32)": RX7800XTModel,
         "RX 7700 XT (RDNA3 – Navi 32)": RX7700XTModel,
+        "NVIDIA H100 SXM5 - Ultra Detailed (Interactive)": UltraDetailedGPUModel,
         "RTX 4090": RTX4090Model,
         "RTX 4080": RTX4080Model,
         "RTX 4070 Ti": RTX4070TiModel,
@@ -63,6 +66,7 @@ def get_gpu_model(model_name: str, view3d_instance) -> BaseGPUModel:
         "RX 7900 GRE": RX7900GREModel,
         "RX 7800 XT": RX7800XTModel,
         "RX 7700 XT": RX7700XTModel,
+        "Ultra Detailed GPU": UltraDetailedGPUModel,
     }
     default_model = "RTX 4080 (Ada - AD103-300)"
     

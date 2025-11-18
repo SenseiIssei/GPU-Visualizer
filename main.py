@@ -823,18 +823,27 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         self.component_panel.setMaximumWidth(450)
         right_panel_layout.addWidget(self.component_panel, 2)
         
-        main_layout.addWidget(left_panel)
-        main_layout.addWidget(self.view_container, 1)
-        main_layout.addWidget(right_panel)
+        self.main_splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        left_scroll = QtWidgets.QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        left_scroll.setWidget(left_panel)
+        right_scroll = QtWidgets.QScrollArea()
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        right_scroll.setWidget(right_panel)
+        self.main_splitter.addWidget(left_scroll)
+        self.main_splitter.addWidget(self.view_container)
+        self.main_splitter.addWidget(right_scroll)
+        self.main_splitter.setCollapsible(0, False)
+        self.main_splitter.setCollapsible(1, False)
+        self.main_splitter.setCollapsible(2, True)
+        self.main_splitter.setSizes([380, 1160, 420])
+        self.main_splitter.setStretchFactor(1, 1)
+        
+        main_layout.addWidget(self.main_splitter, 1)
         
         self.status_bar = self.statusBar()
-        self.status_bar.setStyleSheet("""
-            QStatusBar {
-                background-color: #2a2a2a;
-                color: #ffffff;
-                border-top: 1px solid #404040;
-            }
-        """)
         self.status_label = QtWidgets.QLabel("Ready")
         self.status_bar.addWidget(self.status_label)
         
@@ -868,8 +877,17 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         self.component_panel.component_selected.connect(self._on_component_highlighted)
         
         self.controls.changed_colormap.connect(self._on_colormap_changed)
+        if hasattr(self.controls, 'changed_view_mode2d'):
+            self.controls.changed_view_mode2d.connect(self.view2d.set_view_mode)
+        if hasattr(self.controls, 'changed_coloring_mode'):
+            self.controls.changed_coloring_mode.connect(self.view2d.set_coloring_mode)
         self.controls.import_json_clicked.connect(self._on_import_json)
         self.controls.export_json_clicked.connect(self._on_export_json)
+        
+        if hasattr(self.controls, 'start_global_anims'):
+            self.controls.start_global_anims.connect(self._on_start_global_anims)
+        if hasattr(self.controls, 'stop_global_anims'):
+            self.controls.stop_global_anims.connect(self._on_stop_global_anims)
         
         self.view_mode_group.buttonClicked.connect(self._on_view_mode_changed)
         
@@ -936,6 +954,13 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
     def _on_gpu_model_loaded(self):
         if hasattr(self.view3d, 'gpu_model') and self.view3d.gpu_model:
             self.component_panel.set_gpu_model(self.view3d.gpu_model)
+            # Add interactive components for ultra-detailed models
+            self.view2d.add_interactive_components(self.view3d.gpu_model)
+            try:
+                if hasattr(self.controls, 'set_animation_components'):
+                    self.controls.set_animation_components(self.view3d.gpu_model.interactive_components)
+            except Exception:
+                pass
         else:
             self._show_error("GPU model failed to initialize properly")
             
@@ -1015,11 +1040,64 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         if self.sim:
             self.sim.start()
             self.status_label.setText("Simulation started")
+            try:
+                if hasattr(self.controls, 'get_selected_animation_components') and hasattr(self.controls, 'get_selected_animation_mode'):
+                    comps = self.controls.get_selected_animation_components()
+                    mode = self.controls.get_selected_animation_mode()
+                    if comps:
+                        self._on_start_global_anims(comps, mode)
+            except Exception:
+                pass
             
     def _on_simulation_stopped(self):
         if self.sim:
             self.sim.stop()
             self.status_label.setText("Simulation stopped")
+            try:
+                if hasattr(self.controls, 'get_selected_animation_components'):
+                    comps = self.controls.get_selected_animation_components()
+                    self._on_stop_global_anims(comps)
+            except Exception:
+                pass
+
+    def _on_start_global_anims(self, comp_ids: list, mode: str):
+        try:
+            if self.view_3d_radio.isChecked():
+                model = getattr(self.view3d, 'gpu_model', None)
+                if model and hasattr(model, 'start_component_animation'):
+                    for cid in comp_ids:
+                        try:
+                            model.start_component_animation(cid, mode)
+                        except Exception:
+                            pass
+                self.view3d.update()
+            else:
+                if hasattr(self.view2d, 'start_global_animations'):
+                    self.view2d.start_global_animations(comp_ids, mode)
+            self.status_label.setText(f"Animations started: {mode} on {len(comp_ids)} components")
+        except Exception:
+            pass
+
+    def _on_stop_global_anims(self, comp_ids: list):
+        try:
+            if self.view_3d_radio.isChecked():
+                model = getattr(self.view3d, 'gpu_model', None)
+                if model and hasattr(model, 'stop_component_animation'):
+                    if comp_ids:
+                        for cid in comp_ids:
+                            try:
+                                model.stop_component_animation(cid)
+                            except Exception:
+                                pass
+                    else:
+                        model.stop_component_animation(None)
+                self.view3d.update()
+            else:
+                if hasattr(self.view2d, 'stop_global_animations'):
+                    self.view2d.stop_global_animations(comp_ids)
+            self.status_label.setText("Animations stopped")
+        except Exception:
+            pass
             
     def _on_import_json(self):
         path, _ = QtWidgets.QFileDialog.getOpenFileName(

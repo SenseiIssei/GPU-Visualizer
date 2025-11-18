@@ -23,6 +23,9 @@ class Controls(QtWidgets.QWidget):
     changed_power_mv = QtCore.Signal(int)
     start_clicked = QtCore.Signal()
     stop_clicked = QtCore.Signal()
+    start_global_anims = QtCore.Signal(list, str)
+    stop_global_anims = QtCore.Signal(list)
+
     import_json_clicked = QtCore.Signal()
     export_json_clicked = QtCore.Signal()
     log_window_clicked = QtCore.Signal()
@@ -106,6 +109,29 @@ class Controls(QtWidgets.QWidget):
         start.clicked.connect(self.start_clicked)
         stop.clicked.connect(self.stop_clicked)
 
+        anim_group = QtWidgets.QGroupBox("Animations")
+        anim_lay = QtWidgets.QVBoxLayout(anim_group)
+        anim_top = QtWidgets.QHBoxLayout()
+        self.anim_mode_combo = QtWidgets.QComboBox()
+        self.anim_mode_combo.addItem("Pulse", "pulse")
+        self.anim_mode_combo.addItem("Flow", "flow")
+        self.anim_mode_combo.addItem("Orbit", "orbit")
+        self.anim_mode_combo.addItem("Ripple", "ripple")
+        self.anim_mode_combo.addItem("Beam", "beam")
+        self.anim_mode_combo.addItem("Sparkle", "sparkle")
+        anim_top.addWidget(self.anim_mode_combo)
+        self.anim_start_btn = QtWidgets.QPushButton("Start Animations")
+        self.anim_stop_btn = QtWidgets.QPushButton("Stop Animations")
+        anim_top.addWidget(self.anim_start_btn)
+        anim_top.addWidget(self.anim_stop_btn)
+        anim_lay.addLayout(anim_top)
+        self.anim_components_list = QtWidgets.QListWidget()
+        self.anim_components_list.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
+        anim_lay.addWidget(self.anim_components_list)
+        root.addWidget(anim_group)
+        self.anim_start_btn.clicked.connect(self._emit_start_global_anims)
+        self.anim_stop_btn.clicked.connect(self._emit_stop_global_anims)
+
         help_box = QtWidgets.QGroupBox("Hints")
         help_lay = QtWidgets.QVBoxLayout(help_box)
         help_lay.addWidget(QtWidgets.QLabel(
@@ -119,3 +145,29 @@ class Controls(QtWidgets.QWidget):
 
     def get_log_window(self):
         return self.log_window
+
+    def set_animation_components(self, components: dict):
+        self.anim_components_list.clear()
+        for comp_id, comp_data in components.items():
+            text = f"{comp_data.get('name', comp_id)} ({comp_id})"
+            item = QtWidgets.QListWidgetItem(text)
+            item.setData(QtCore.Qt.UserRole, comp_id)
+            self.anim_components_list.addItem(item)
+
+    def get_selected_animation_components(self) -> list:
+        return [i.data(QtCore.Qt.UserRole) for i in self.anim_components_list.selectedItems()]
+
+    def get_selected_animation_mode(self) -> str:
+        try:
+            return self.anim_mode_combo.currentData() or 'pulse'
+        except Exception:
+            return 'pulse'
+
+    def _emit_start_global_anims(self):
+        comps = self.get_selected_animation_components()
+        mode = self.get_selected_animation_mode()
+        self.start_global_anims.emit(comps, mode)
+
+    def _emit_stop_global_anims(self):
+        comps = self.get_selected_animation_components()
+        self.stop_global_anims.emit(comps)

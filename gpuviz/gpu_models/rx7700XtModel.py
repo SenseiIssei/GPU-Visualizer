@@ -26,6 +26,284 @@ class RX7700XTModel(BaseGPUModel):
     PCB_WIDTH_MM = 106.0
     PCB_THICKNESS_MM = 1.5
 
+    def __init__(self, view3d_instance):
+        super().__init__(view3d_instance)
+        self.interactive_components = {}
+        self.animation_state = {
+            'current_animation': None,
+            'animation_frame': 0,
+            'animation_speed': 1.0,
+            'pulsing_components': set(),
+            'highlighted_component': None
+        }
+        self._define_interactive_components()
+
+    def _define_interactive_components(self):
+        """Define interactive components for RX 7700 XT with tooltips and workflows."""
+        self.interactive_components = {
+            'gpu_die': {
+                'position': (0, 0, 0.18),
+                'bounds': (-1.0, -1.0, 0.18, 2.0, 2.0, 0.08),
+                'tooltip': 'Navi32 GPU Die: 3,456 CUDA cores, 5nm GCD + 6nm MCDs, 2.17 GHz boost clock',
+                'workflow': 'gpu_compute'
+            },
+            'vram_chips': {
+                'position': (-3, -2.5, 0.1),
+                'bounds': (-4, -3.5, 0.1, 6, 6, 0.1),
+                'tooltip': '6x Samsung GDDR6 VRAM: 12GB total, 192-bit bus, 18 Gbps, 432 GB/s bandwidth',
+                'workflow': 'memory_bandwidth'
+            },
+            'vrm_modules': {
+                'position': (-9, -3, 0.1),
+                'bounds': (-10, -4, 0.1, 20, 8, 0.2),
+                'tooltip': '10-phase VRM: Digital PWM, 35A power stages, supports 245W TDP',
+                'workflow': 'power_delivery'
+            },
+            'fans': {
+                'position': (-4.5, 0, 0.4),
+                'bounds': (-7, -2.6, 0.35, 11, 5.2, 0.3),
+                'tooltip': 'Triple Axial-tech fans: 11 blades each, fluid dynamic bearings, optimized tri-fan airflow',
+                'workflow': 'cooling_system'
+            },
+            'heat_pipes': {
+                'position': (-3, -1.5, 2),
+                'bounds': (-3.5, -2, 0.3, 6, 3, 24),
+                'tooltip': '4x 8mm nickel-plated copper heat pipes: Vapor chamber cooling, full die coverage',
+                'workflow': 'thermal_management'
+            },
+            'display_ports': {
+                'position': (13.65, -2, -1),
+                'bounds': (13.5, -3, -1.5, 1, 6, 1),
+                'tooltip': 'Display outputs: 2x DP 2.1, 1x HDMI 2.1a, 8K@60Hz HDR support',
+                'workflow': 'display_output'
+            },
+            'power_connectors': {
+                'position': (13.65, 5.25, -1),
+                'bounds': (13.5, 4, -1.5, 1.5, 3, 1),
+                'tooltip': 'Power connectors: Dual 8-pin, 245W TDP, dual BIOS switch',
+                'workflow': 'power_input'
+            },
+            'thermal_sensors': {
+                'position': (0, -4, 0.05),
+                'bounds': (-4.5, -4.5, 0.05, 9, 0.5, 0.1),
+                'tooltip': 'Thermal monitoring: Multiple sensors, 95°C max temp, real-time temperature control',
+                'workflow': 'thermal_monitoring'
+            },
+            'bios_chip': {
+                'position': (-4, -4, 0.05),
+                'bounds': (-4.8, -4.6, 0.05, 0.8, 0.6, 0.1),
+                'tooltip': 'Dual BIOS: Safe firmware updates, AMD optimized settings',
+                'workflow': 'firmware_management'
+            },
+            'clock_generator': {
+                'position': (4, -4, 0.05),
+                'bounds': (3.3, -4.6, 0.05, 0.6, 0.6, 0.1),
+                'tooltip': 'High-precision clock generator: Stable frequencies, dynamic clock scaling',
+                'workflow': 'clock_management'
+            }
+        }
+
+    def handle_hover_event(self, component_name):
+        """Handle hover event for interactive components."""
+        if component_name in self.interactive_components:
+            self.animation_state['highlighted_component'] = component_name
+            self.animation_state['pulsing_components'].add(component_name)
+            return self.interactive_components[component_name]['tooltip']
+        return None
+
+    def handle_click_event(self, component_name):
+        """Handle click event for interactive components."""
+        if component_name in self.interactive_components:
+            workflow = self.interactive_components[component_name]['workflow']
+            self._start_workflow_animation(workflow)
+            return f"Showing {workflow.replace('_', ' ').title()} workflow"
+        return None
+
+    def handle_hover_leave_event(self, component_name):
+        """Handle hover leave event for interactive components."""
+        if component_name in self.animation_state['pulsing_components']:
+            self.animation_state['pulsing_components'].discard(component_name)
+        if self.animation_state['highlighted_component'] == component_name:
+            self.animation_state['highlighted_component'] = None
+
+    def update_animation(self, delta_time):
+        """Update animation state."""
+        if self.animation_state['current_animation']:
+            self.animation_state['animation_frame'] += delta_time * self.animation_state['animation_speed']
+            if self.animation_state['animation_frame'] > 1.0:
+                self.animation_state['animation_frame'] = 0.0
+
+    def _start_workflow_animation(self, workflow_name):
+        """Start a workflow animation."""
+        self.animation_state['current_animation'] = workflow_name
+        self.animation_state['animation_frame'] = 0.0
+
+        # Show workflow animation dialog
+        if hasattr(self.view3d, 'parent') and hasattr(self.view3d.parent, 'show_workflow_animation'):
+            workflow_text = self._get_workflow_text(workflow_name)
+            self.view3d.parent.show_workflow_animation(workflow_name.replace('_', ' ').title(), workflow_text)
+
+    def _get_workflow_text(self, workflow_name):
+        """Get workflow description text."""
+        workflows = {
+            'gpu_compute': 'GPU Compute Workflow: Shader instructions flow through 18 Workgroup Processors, each containing 2 Compute Units with 4 wavefronts. Matrix operations are accelerated by dedicated tensor cores.',
+            'memory_bandwidth': 'Memory Bandwidth: 192-bit GDDR6 bus transfers data at 18 Gbps per pin. Infinity Cache reduces latency while MCDs handle memory compression and ECC.',
+            'power_delivery': 'Power Delivery: 10-phase VRM converts 12V input to GPU voltages. Digital PWM provides precise voltage control with real-time telemetry.',
+            'cooling_system': 'Cooling System: Triple Axial-tech fans create positive pressure airflow. Heat pipes transfer thermal energy from die to heatsink fins for dissipation.',
+            'thermal_management': 'Thermal Management: Multiple sensors monitor temperatures. Fan curves adjust based on thermal load, maintaining optimal operating temperatures.',
+            'display_output': 'Display Output: DisplayPort 2.1 and HDMI 2.1a controllers handle 8K@60Hz signals. DSC compression enables high-resolution displays.',
+            'power_input': 'Power Input: Dual 8-pin connectors provide up to 245W. Efficiency optimization reduces power consumption during light workloads.',
+            'thermal_monitoring': 'Thermal Monitoring: Real-time temperature tracking enables dynamic clock scaling. Hotspot detection prevents thermal throttling.',
+            'firmware_management': 'Firmware Management: Dual BIOS provides fail-safe updates. Optimized settings maximize performance within thermal limits.',
+            'clock_management': 'Clock Management: Precision clock generation enables dynamic frequency scaling. Boost clocks reach 2.17 GHz under optimal conditions.'
+        }
+        return workflows.get(workflow_name, 'Workflow animation not available')
+
+    def _draw_matmul_animation(self):
+        """Draw matrix multiplication animation."""
+        frame = self.animation_state['animation_frame']
+        intensity = abs(math.sin(frame * math.pi * 2)) * 0.5 + 0.5
+
+        # Animate compute units
+        for i in range(18):  # 18 WGPs
+            x = (i % 6 - 2.5) * 0.6
+            y = (i // 6 - 1.0) * 0.8
+            color = (0.8 * intensity, 0.6 * intensity, 0.2 * intensity, 1.0)
+            self.view3d._draw_3d_box(x - 0.15, y - 0.15, 0.18, 0.3, 0.3, 0.02, color)
+
+    def _draw_memory_flow_animation(self):
+        """Draw memory bandwidth animation."""
+        frame = self.animation_state['animation_frame']
+
+        # Animate data flow between GPU and VRAM
+        for i in range(6):
+            progress = (frame + i * 0.166) % 1.0
+            x = -3 + progress * 10
+            y = -2.5 + i * 0.833
+            color = (0.2, 0.8 * progress, 0.9 * progress, 1.0)
+            self.view3d._draw_3d_box(x - 0.1, y - 0.1, 0.15, 0.2, 0.2, 0.05, color)
+
+    def _draw_power_delivery_animation(self):
+        """Draw power delivery animation."""
+        frame = self.animation_state['animation_frame']
+        intensity = abs(math.sin(frame * math.pi * 4)) * 0.7 + 0.3
+
+        # Animate VRM phases
+        for i in range(10):
+            x = -9 + (i % 5) * 3.6
+            y = -3 + (i // 5) * 2
+            color = (0.9 * intensity, 0.7 * intensity, 0.1 * intensity, 1.0)
+            self.view3d._draw_3d_box(x - 0.3, y - 0.3, 0.1, 0.6, 0.6, 0.15, color)
+
+    def _draw_cooling_animation(self):
+        """Draw cooling system animation."""
+        frame = self.animation_state['animation_frame']
+
+        # Animate fan rotation
+        for fan_idx, (x, y) in enumerate([(-4.5, 0), (0, 0), (4.5, 0)]):
+            angle_offset = frame * math.pi * 2 * (1 if fan_idx % 2 == 0 else -1)
+            for blade in range(11):
+                angle = angle_offset + (blade / 11) * 2 * math.pi
+                blade_x = x + 0.8 * math.cos(angle)
+                blade_y = y + 0.8 * math.sin(angle)
+                color = (0.3, 0.3, 0.4, 1.0)
+                self.view3d._draw_3d_box(blade_x - 0.05, blade_y - 0.05, 0.4, 0.1, 0.1, 0.05, color)
+
+    def _draw_thermal_animation(self):
+        """Draw thermal management animation."""
+        frame = self.animation_state['animation_frame']
+        intensity = abs(math.sin(frame * math.pi * 2)) * 0.6 + 0.4
+
+        # Animate heat flow through pipes
+        for i, (x, y) in enumerate([(-3, -1.5), (0, -1.5), (3, -1.5), (-3, 1.5), (3, 1.5)]):
+            progress = (frame + i * 0.2) % 1.0
+            heat_x = x
+            heat_y = y
+            heat_z = 0.3 + progress * 24
+            color = (1.0 * intensity, 0.3 * intensity, 0.1 * intensity, 0.8)
+            self.view3d._draw_3d_cylinder(heat_x, heat_y, heat_z, 0.15, 0.5, color)
+
+    def _draw_display_animation(self):
+        """Draw display output animation."""
+        frame = self.animation_state['animation_frame']
+
+        # Animate signal flow to display ports
+        for i, (x, y) in enumerate([(13.65, -2), (13.65, 0), (13.65, 2)]):
+            progress = (frame + i * 0.33) % 1.0
+            signal_z = -1 + progress * 2
+            color = (0.1 * progress, 0.8 * progress, 0.2 * progress, 1.0)
+            self.view3d._draw_3d_box(x - 0.2, y - 0.3, signal_z, 0.4, 0.6, 0.1, color)
+
+    def _draw_power_input_animation(self):
+        """Draw power input animation."""
+        frame = self.animation_state['animation_frame']
+        intensity = abs(math.sin(frame * math.pi * 3)) * 0.8 + 0.2
+
+        # Animate power flow from connectors
+        for i, (x, y) in enumerate([(13.65, 4.5), (13.65, 6.0)]):
+            progress = (frame + i * 0.5) % 1.0
+            power_x = x - progress * 18
+            color = (1.0 * intensity, 0.8 * intensity, 0.0, 1.0)
+            self.view3d._draw_3d_box(power_x - 0.2, y - 0.4, -1, 0.4, 0.8, 0.3, color)
+
+    def _draw_thermal_monitoring_animation(self):
+        """Draw thermal monitoring animation."""
+        frame = self.animation_state['animation_frame']
+
+        # Animate sensor readings
+        for i, (x, y) in enumerate([(0, -4), (0, 4), (-4, 0), (4, 0)]):
+            intensity = abs(math.sin(frame * math.pi * 2 + i)) * 0.7 + 0.3
+            color = (0.1 * intensity, 0.9 * intensity, 0.1 * intensity, 1.0)
+            self.view3d._draw_3d_box(x - 0.15, y - 0.15, 0.05, 0.3, 0.3, 0.08, color)
+
+    def _draw_firmware_animation(self):
+        """Draw firmware management animation."""
+        frame = self.animation_state['animation_frame']
+
+        # Animate BIOS chip activity
+        intensity = abs(math.sin(frame * math.pi * 4)) * 0.6 + 0.4
+        color = (0.1 * intensity, 0.8 * intensity, 0.1 * intensity, 1.0)
+        self.view3d._draw_3d_box(-4 - 0.4, -4 - 0.3, 0.05, 0.8, 0.6, 0.08, color)
+
+    def _draw_clock_animation(self):
+        """Draw clock management animation."""
+        frame = self.animation_state['animation_frame']
+
+        # Animate clock signal distribution
+        intensity = abs(math.sin(frame * math.pi * 6)) * 0.8 + 0.2
+        color = (0.9 * intensity, 0.7 * intensity, 0.1 * intensity, 1.0)
+        self.view3d._draw_3d_box(4 - 0.3, -4 - 0.3, 0.05, 0.6, 0.6, 0.08, color)
+
+    def handle_component_click(self, component_name):
+        """Handle component click for workflow animations."""
+        if component_name in self.interactive_components:
+            workflow = self.interactive_components[component_name]['workflow']
+            self._start_workflow_animation(workflow)
+
+    def _draw_current_animation(self):
+        """Draw the current active animation."""
+        animation = self.animation_state['current_animation']
+        if animation == 'gpu_compute':
+            self._draw_matmul_animation()
+        elif animation == 'memory_bandwidth':
+            self._draw_memory_flow_animation()
+        elif animation == 'power_delivery':
+            self._draw_power_delivery_animation()
+        elif animation == 'cooling_system':
+            self._draw_cooling_animation()
+        elif animation == 'thermal_management':
+            self._draw_thermal_animation()
+        elif animation == 'display_output':
+            self._draw_display_animation()
+        elif animation == 'power_input':
+            self._draw_power_input_animation()
+        elif animation == 'thermal_monitoring':
+            self._draw_thermal_monitoring_animation()
+        elif animation == 'firmware_management':
+            self._draw_firmware_animation()
+        elif animation == 'clock_management':
+            self._draw_clock_animation()
+
     def get_model_name(self) -> str:
         return "AMD Radeon RX 7700 XT (Ultra Realistic)"
 
@@ -103,6 +381,10 @@ class RX7700XTModel(BaseGPUModel):
         self.draw_pcb_and_components(lod)
         self.draw_cooling_system(lod)
         self.draw_chassis(lod)
+
+        # Draw current animation if active
+        if self.animation_state['current_animation']:
+            self._draw_current_animation()
 
     def draw_ultra_realistic_model(self):
         """Draw ultra-realistic 1:1 replica with microscopic details."""

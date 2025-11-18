@@ -7,11 +7,10 @@ Optimized for smooth rendering with display list caching
 from .baseGpuModel import BaseGPUModel
 from typing import Dict, Tuple
 import math
+import time
 
 class RTX4090Model(BaseGPUModel):
-    """Ultra-realistic RTX 4090 GPU model optimized for smooth rendering."""
     
-    # Component specifications
     LENGTH_MM = 336.0
     WIDTH_MM = 140.0
     HEIGHT_MM = 61.0
@@ -26,59 +25,145 @@ class RTX4090Model(BaseGPUModel):
     PCB_WIDTH_MM = 137.0
     PCB_THICKNESS_MM = 1.5
     
+    def __init__(self, view3d_instance):
+        super().__init__(view3d_instance)
+        self.interactive_components = self._define_interactive_components()
+        self.animation_state = {
+            'hovered_component': None,
+            'clicked_component': None,
+            'animation_time': 0.0,
+            'current_workflow': None,
+            'workflow_frame': 0,
+            'total_frames': 60,
+            'matmul_demo_active': False,
+            'memory_flow_active': False,
+            'tensor_core_demo': False
+        }
+        
+    def _define_interactive_components(self) -> Dict[str, Dict]:
+        return {
+            "gpu_die": {
+                "name": "AD102 GPU Die",
+                "position": (0, 0, 0.18),
+                "size": (1.8, 1.8, 0.08),
+                "color": (0.15, 0.15, 0.2, 1.0),
+                "hover_color": (0.35, 0.35, 0.5, 1.0),
+                "description": "AD102 GPU Die: 76.3 billion transistors, 16,384 CUDA cores, 512 Tensor Cores, 96 RT Cores. Features TSMC 4nm process.",
+                "workflow": "die_layout",
+                "animation_frames": 60
+            },
+            "vram_chips": {
+                "name": "GDDR6X VRAM Chips",
+                "position": (0, -4, 0.1),
+                "size": (28, 1, 0.1),
+                "color": (0.05, 0.05, 0.1, 1.0),
+                "hover_color": (0.25, 0.25, 0.35, 1.0),
+                "description": "24x GDDR6X VRAM Chips: 1GB each, 21 Gbps effective speed, 384-bit bus, 1008 GB/s bandwidth.",
+                "workflow": "memory_access",
+                "animation_frames": 120
+            },
+            "cooling_fans": {
+                "name": "Triple Axial-Tech Fans",
+                "position": (0, 0, 0.4),
+                "size": (19.2, 6.4, 0.3),
+                "color": (0.12, 0.12, 0.15, 1.0),
+                "hover_color": (0.32, 0.32, 0.45, 1.0),
+                "description": "Triple Axial-tech fans with 13 blades, dual ball bearings for quiet operation.",
+                "workflow": "thermal_flow",
+                "animation_frames": 100
+            },
+            "power_delivery": {
+                "name": "24-Phase VRM",
+                "position": (-12, 0, 0.1),
+                "size": (4, 14, 0.2),
+                "color": (0.2, 0.2, 0.2, 1.0),
+                "hover_color": (0.4, 0.4, 0.4, 1.0),
+                "description": "24-phase VRM with 90A power stages, digital PWM controller, supports 600W TDP.",
+                "workflow": "power_delivery",
+                "animation_frames": 80
+            },
+            "memory_controller": {
+                "name": "Memory Controller",
+                "position": (0, 0, 0.18),
+                "size": (1.8, 1.8, 0.08),
+                "color": (0.1, 0.1, 0.3, 1.0),
+                "hover_color": (0.3, 0.3, 0.6, 1.0),
+                "description": "Memory Controller: 384-bit GDDR6X interface, ECC support, advanced error correction.",
+                "workflow": "memory_controller",
+                "animation_frames": 90
+            },
+            "tensor_cores": {
+                "name": "Tensor Cores",
+                "position": (0, 0, 0.18),
+                "size": (1.8, 1.8, 0.08),
+                "color": (0.4, 0.1, 0.4, 1.0),
+                "hover_color": (0.7, 0.3, 0.7, 1.0),
+                "description": "Tensor Cores: 512 units, 4th generation, sparsity support. Delivers 82.6 TFLOPS FP16.",
+                "workflow": "tensor_matmul",
+                "animation_frames": 240
+            },
+            "rt_cores": {
+                "name": "RT Cores",
+                "position": (0, 0, 0.18),
+                "size": (1.8, 1.8, 0.08),
+                "color": (0.1, 0.3, 0.1, 1.0),
+                "hover_color": (0.3, 0.6, 0.3, 1.0),
+                "description": "RT Cores: 96 units, 3rd generation, concurrent RT and shading. Enables real-time ray tracing.",
+                "workflow": "rt_acceleration",
+                "animation_frames": 180
+            },
+            "nvlink_interface": {
+                "name": "NVLink Interface",
+                "position": (14, 0, 0.1),
+                "size": (2, 2, 0.1),
+                "color": (0.1, 0.4, 0.1, 1.0),
+                "hover_color": (0.3, 0.7, 0.3, 1.0),
+                "description": "NVLink Interface: 4x NVLink 4.0 connections, 112.5 GB/s bidirectional.",
+                "workflow": "nvlink_comm",
+                "animation_frames": 120
+            },
+            "pcie_interface": {
+                "name": "PCIe Gen5 Interface",
+                "position": (14, 0, 0.1),
+                "size": (2, 2, 0.1),
+                "color": (0.3, 0.3, 0.1, 1.0),
+                "hover_color": (0.6, 0.6, 0.3, 1.0),
+                "description": "PCIe Gen5 x16: 128 GB/s bidirectional bandwidth, CXL support.",
+                "workflow": "pcie_transfer",
+                "animation_frames": 100
+            },
+            "display_outputs": {
+                "name": "Display Outputs",
+                "position": (17.1, 0, -1),
+                "size": (0.8, 4.8, 0.8),
+                "color": (0.2, 0.2, 0.25, 1.0),
+                "hover_color": (0.5, 0.5, 0.6, 1.0),
+                "description": "Display Outputs: 3x DisplayPort 1.4a, 1x HDMI 2.1. Supports 8K@60Hz HDR.",
+                "workflow": "display_output",
+                "animation_frames": 80
+            }
+        }
+    
     def get_model_name(self) -> str:
-        return "NVIDIA GeForce RTX 4090 (Ultra Realistic)"
+        return "NVIDIA GeForce RTX 4090 (Ultra Detailed - Interactive)"
         
     def get_chassis_dimensions(self) -> Tuple[float, float, float]:
-        """RTX 4090 exact dimensions: 336mm x 140mm x 61mm"""
         return (self.LENGTH_MM/10, self.WIDTH_MM/10, self.HEIGHT_MM/10)
         
     def get_component_list(self) -> Dict[str, str]:
-        """Get RTX 4090 specific components with detailed explanations."""
-        return {
-            "Chassis": "336mm x 140mm x 61mm aluminum chassis with optimized ventilation",
-            "Triple Fans": "3x Axial-tech fans with 13 blades, dual ball bearings for quiet operation",
-            "Vapor Chamber": "Large vapor chamber with 10 heat pipes covering full AD102 die",
-            "GPU Die": "AD102-300 GPU, 16,384 CUDA cores, 24GB GDDR6X memory, 4nm process",
-            "VRAM Layout": "24x Micron GDDR6X chips in 384-bit configuration, 21 Gbps effective",
-            "Power Delivery": "24-phase VRM with 90A power stages and digital PWM controller",
-            "Backplate": "Reinforced aluminum with 40% ventilation area for thermal performance",
-            "PCB Design": "14-layer custom PCB with 6oz copper layers, optimized for power delivery",
-            "Display Outputs": "3x DisplayPort 1.4a, 1x HDMI 2.1, supports 8K@60Hz HDR",
-            "Power Connector": "12VHPWR connector supporting up to 600W with overcurrent protection",
-            "Heat Pipes": "10x 8mm nickel-plated copper heat pipes with direct die contact",
-            "VRM Cooling": "Extended heatsinks with fin arrays for power stage cooling",
-            "Memory Interface": "384-bit memory bus, 21 Gbps effective, 1008 GB/s bandwidth",
-            "Clock Speeds": "2.52 GHz boost, 2.23 GHz base, 82.6 TFLOPS single precision",
-            "Illumination": "RGB lighting on side logo, software controllable via GeForce Experience",
-            "Thermal Design": "3-slot design, 450W TDP, 90°C max operating temperature",
-            "Ventilation": "Optimized airflow path with 90% open area for maximum cooling",
-            "BIOS Chip": "Dual BIOS switch for safe firmware updates and overclocking profiles",
-            "Clock Generator": "High-precision clock generator for stable frequencies",
-            "Power Management": "Advanced power management ICs for efficiency monitoring",
-            "Thermal Sensors": "Multiple temperature sensors for real-time monitoring",
-            "Display Controllers": "TMDS and DisplayPort controllers for output management",
-            "Voltage Regulators": "24-phase voltage regulation modules for stable power",
-            "Capacitors": "High-quality polymer capacitors for clean power delivery",
-            "Inductors": "Power inductors for voltage regulation and filtering",
-            "Resistors": "Surface mount resistors for signal conditioning",
-            "PCB Traces": "Copper traces for power and data distribution"
-        }
+        return {comp_id: comp_data["description"] for comp_id, comp_data in self.interactive_components.items()}
 
     def draw_chassis(self, lod: int):
-        """Draw RTX 4090 chassis with optimized ventilation."""
         if self.view3d and hasattr(self.view3d, 'show_chassis') and self.view3d.show_chassis and self.should_render_component("chassis"):
             self._draw_rtx4090_chassis()
         
     def draw_cooling_system(self, lod: int):
-        """Draw RTX 4090 cooling system."""
         if self.view3d and hasattr(self.view3d, 'show_cooling') and self.view3d.show_cooling and self.should_render_component("cooling"):
             self._draw_rtx4090_heatsink()
             self._draw_rtx4090_heat_pipes()
             self._draw_rtx4090_fans()
         
     def draw_pcb_and_components(self, lod: int):
-        """Draw RTX 4090 PCB and all components."""
         if self.view3d and hasattr(self.view3d, 'show_pcb') and self.view3d.show_pcb and self.should_render_component("pcb"):
             self._draw_rtx4090_pcb()
         if self.view3d and hasattr(self.view3d, 'show_gpu_die') and self.view3d.show_gpu_die and self.should_render_component("gpu_die"):
@@ -89,23 +174,26 @@ class RTX4090Model(BaseGPUModel):
             self._draw_rtx4090_power_delivery()
         
     def draw_backplate(self, lod: int):
-        """Draw RTX 4090 backplate."""
         if self.view3d and hasattr(self.view3d, 'show_backplate') and self.view3d.show_backplate and self.should_render_component("backplate"):
             self._draw_rtx4090_backplate()
         if self.view3d and hasattr(self.view3d, 'show_io_bracket') and self.view3d.show_io_bracket and self.should_render_component("io_bracket"):
             self._draw_rtx4090_io_bracket()
 
     def draw_complete_model(self, lod: int):
-        """Draw the complete RTX 4090 model with all components optimized for caching."""
-        # Draw from back to front for proper depth
         self.draw_backplate(lod)
         self.draw_pcb_and_components(lod)
         self.draw_cooling_system(lod)
         self.draw_chassis(lod)
 
     def draw_ultra_realistic_model(self):
-        """Draw ultra-realistic 1:1 replica with microscopic details."""
         self.draw_complete_model(0)
+        
+        if self.animation_state['matmul_demo_active']:
+            self._draw_matmul_animation()
+        elif self.animation_state['memory_flow_active']:
+            self._draw_memory_flow_animation()
+        elif self.animation_state['tensor_core_demo']:
+            self._draw_tensor_core_animation()
 
     def _draw_rtx4090_pcb(self):
         """Draw ultra-detailed RTX 4090 PCB with all real-world components."""
@@ -511,3 +599,265 @@ class RTX4090Model(BaseGPUModel):
         # 12VHPWR power connector
         power_color = (0.15, 0.15, 0.2, 1.0)
         self.view3d._draw_3d_box(17.1, 5.5, -1, 1.2, 2.0, 1.0, power_color)
+        
+    def handle_component_click(self, component_name: str):
+        if component_name == "gpu_die":
+            self.show_gpu_die_workflow()
+        elif component_name == "vram_chips":
+            self.show_memory_workflow()
+        elif component_name == "cooling_fans":
+            self.show_cooling_workflow()
+        elif component_name == "power_delivery":
+            self.show_power_workflow()
+        elif component_name == "memory_controller":
+            self.show_memory_controller_workflow()
+        elif component_name == "tensor_cores":
+            self.show_tensor_core_workflow()
+        elif component_name == "rt_cores":
+            self.show_rt_core_workflow()
+        elif component_name == "nvlink_interface":
+            self.show_nvlink_workflow()
+        elif component_name == "pcie_interface":
+            self.show_pcie_workflow()
+        elif component_name == "display_outputs":
+            self.show_display_workflow()
+    
+    def _start_workflow_animation(self, workflow_type: str, frame_count: int):
+        self.animation_state['current_workflow'] = workflow_type
+        self.animation_state['workflow_frame'] = 0
+        self.animation_state['total_frames'] = frame_count
+        self.animation_state['animation_start_time'] = time.time()
+    
+    def _draw_matmul_animation(self):
+        if not self.view3d:
+            return
+
+        frame = self.animation_state.get('workflow_frame', 0)
+        progress = frame / max(1, self.animation_state.get('total_frames', 60))
+
+        self._draw_matrix_a_animation(progress)
+        self._draw_matrix_b_animation(progress)
+        self._draw_result_matrix_animation(progress)
+        self._draw_tensor_core_operations(progress)
+
+    def _draw_matrix_a_animation(self, progress: float):
+        tiles = 8
+        for i in range(tiles):
+            tile_progress = min(1.0, max(0.0, progress * tiles - i))
+            x = -10 + tile_progress * 15
+            y = -3 + i * 0.8
+            color = (0.2 + tile_progress * 0.3, 0.3, 0.8, 0.8)
+            self.view3d._draw_3d_box(x - 0.5, y - 0.5, 0.5, 1.0, 1.0, 0.2, color)
+
+    def _draw_matrix_b_animation(self, progress: float):
+        tiles = 6
+        for i in range(tiles):
+            tile_progress = min(1.0, max(0.0, progress * tiles - i))
+            x = 8 - tile_progress * 12
+            y = -2 + i * 0.7
+            color = (0.8, 0.3 + tile_progress * 0.3, 0.2, 0.8)
+            self.view3d._draw_3d_box(x - 0.5, y - 0.5, 0.5, 1.0, 1.0, 0.2, color)
+
+    def _draw_result_matrix_animation(self, progress: float):
+        tiles_x, tiles_y = 4, 4
+        for i in range(tiles_x):
+            for j in range(tiles_y):
+                tile_idx = i * tiles_y + j
+                tile_progress = min(1.0, max(0.0, progress * 16 - tile_idx))
+                x = -6 + i * 3
+                y = -6 + j * 3
+                intensity = tile_progress
+                color = (intensity * 0.5, intensity * 0.8, intensity * 0.3, 0.9)
+                self.view3d._draw_3d_box(x - 1, y - 1, 0.3, 2.0, 2.0, 0.1, color)
+
+    def _draw_tensor_core_operations(self, progress: float):
+        cores = 16
+        for i in range(cores):
+            core_progress = min(1.0, max(0.0, progress * cores - i))
+            x = 4 + (i % 4) * 1.5
+            y = 2 + (i // 4) * 1.5
+            intensity = core_progress * 0.8 + 0.2
+            color = (intensity, 0.2, intensity, 1.0)
+            self.view3d._draw_3d_box(x - 0.3, y - 0.3, 0.4, 0.6, 0.6, 0.2, color)
+
+    def _draw_memory_flow_animation(self):
+        if not self.view3d:
+            return
+
+        frame = self.animation_state.get('workflow_frame', 0)
+        progress = frame / max(1, self.animation_state.get('total_frames', 120))
+
+        self._draw_hbm_to_l2_flow(progress)
+        self._draw_l2_to_l1_flow(progress)
+        self._draw_l1_to_smem_flow(progress)
+        self._draw_smem_to_registers_flow(progress)
+
+    def _draw_hbm_to_l2_flow(self, progress: float):
+        particles = 20
+        for i in range(particles):
+            particle_progress = (progress * particles + i) % particles / particles
+            x = -8 + particle_progress * 16
+            y = 0 + math.sin(particle_progress * math.pi * 4) * 2
+            color = (0.3, 0.3, 0.8, 0.9)
+            self.view3d._draw_3d_box(x - 0.1, y - 0.1, 0.1, 0.2, 0.2, 0.05, color)
+
+    def _draw_l2_to_l1_flow(self, progress: float):
+        particles = 15
+        for i in range(particles):
+            particle_progress = (progress * particles + i) % particles / particles
+            x = -2 + particle_progress * 8
+            y = -4 + math.sin(particle_progress * math.pi * 6) * 1
+            color = (0.6, 0.4, 0.2, 0.9)
+            self.view3d._draw_3d_box(x - 0.08, y - 0.08, 0.15, 0.16, 0.16, 0.04, color)
+
+    def _draw_l1_to_smem_flow(self, progress: float):
+        particles = 10
+        for i in range(particles):
+            particle_progress = (progress * particles + i) % particles / particles
+            x = 4 + particle_progress * 4
+            y = 3 + math.sin(particle_progress * math.pi * 8) * 0.5
+            color = (0.8, 0.6, 0.1, 0.9)
+            self.view3d._draw_3d_box(x - 0.06, y - 0.06, 0.2, 0.12, 0.12, 0.03, color)
+
+    def _draw_smem_to_registers_flow(self, progress: float):
+        particles = 8
+        for i in range(particles):
+            particle_progress = (progress * particles + i) % particles / particles
+            x = 6 + particle_progress * 3
+            y = 4 + math.sin(particle_progress * math.pi * 10) * 0.3
+            color = (0.9, 0.2, 0.2, 0.9)
+            self.view3d._draw_3d_box(x - 0.04, y - 0.04, 0.25, 0.08, 0.08, 0.02, color)
+
+    def _draw_tensor_core_animation(self):
+        if not self.view3d:
+            return
+
+        frame = self.animation_state.get('workflow_frame', 0)
+        progress = frame / max(1, self.animation_state.get('total_frames', 240))
+
+        self._draw_wgmma_pipeline(progress)
+        self._draw_matrix_tiles(progress)
+        self._draw_accumulator_updates(progress)
+
+    def _draw_wgmma_pipeline(self, progress: float):
+        stages = ['Load A', 'Load B', 'MMA', 'Accumulate', 'Store']
+        for i, stage in enumerate(stages):
+            stage_progress = min(1.0, max(0.0, progress * 5 - i))
+            x = 2 + i * 2
+            y = 6
+            intensity = stage_progress
+            color = (intensity * 0.5, intensity * 0.8, intensity * 0.5, 0.8)
+            self.view3d._draw_3d_box(x - 0.5, y - 0.5, 0.6, 1.0, 1.0, 0.3, color)
+
+    def _draw_matrix_tiles(self, progress: float):
+        a_tiles = 4
+        for i in range(a_tiles):
+            tile_progress = min(1.0, max(0.0, progress * a_tiles - i))
+            x = -2 + i * 1.5
+            y = 4
+            color = (0.2, 0.5 + tile_progress * 0.3, 0.8, 0.9)
+            self.view3d._draw_3d_box(x - 0.3, y - 0.3, 0.5, 0.6, 0.6, 0.2, color)
+
+        b_tiles = 4
+        for i in range(b_tiles):
+            tile_progress = min(1.0, max(0.0, progress * b_tiles - i))
+            x = -2 + i * 1.5
+            y = 2
+            color = (0.8, 0.5 + tile_progress * 0.3, 0.2, 0.9)
+            self.view3d._draw_3d_box(x - 0.3, y - 0.3, 0.5, 0.6, 0.6, 0.2, color)
+
+    def _draw_accumulator_updates(self, progress: float):
+        tiles = 16
+        for i in range(4):
+            for j in range(4):
+                tile_idx = i * 4 + j
+                tile_progress = min(1.0, max(0.0, progress * tiles - tile_idx))
+                x = 8 + i * 0.8
+                y = 2 + j * 0.8
+                intensity = tile_progress * 0.7 + 0.3
+                color = (intensity * 0.3, intensity * 0.6, intensity * 0.9, 0.8)
+                self.view3d._draw_3d_box(x - 0.2, y - 0.2, 0.4, 0.4, 0.4, 0.1, color)
+
+    def update_animation(self, delta_time: float):
+        self.animation_state['animation_time'] += delta_time
+
+        if 'current_workflow' in self.animation_state:
+            self.animation_state['workflow_frame'] += 1
+            if self.animation_state['workflow_frame'] >= self.animation_state['total_frames']:
+                self.animation_state['current_workflow'] = None
+                self.animation_state['workflow_frame'] = 0
+                self.animation_state['matmul_demo_active'] = False
+                self.animation_state['memory_flow_active'] = False
+                self.animation_state['tensor_core_demo'] = False
+    
+    def handle_hover_event(self, component_id: str):
+        self.highlight_component(component_id)
+        
+        comp_data = self.interactive_components.get(component_id, {})
+        workflow = comp_data.get('workflow', '')
+        
+        if workflow == 'tensor_matmul':
+            self.animation_state['tensor_core_demo'] = True
+        elif workflow == 'memory_access':
+            self.animation_state['memory_flow_active'] = True
+        elif workflow == 'die_layout':
+            self.animation_state['matmul_demo_active'] = True
+        
+    def handle_hover_leave_event(self, component_id: str):
+        """Handle hover leave event - stop animations and reset highlighting."""
+        self.clear_highlight()
+        
+        # Stop all animations
+        self.animation_state['tensor_core_demo'] = False
+        self.animation_state['memory_flow_active'] = False
+        self.animation_state['matmul_demo_active'] = False
+        self.animation_state['current_workflow'] = None
+        self.animation_state['workflow_frame'] = 0
+        
+    def handle_click_event(self, component_id: str):
+        self.handle_component_click(component_id)
+        
+        comp_data = self.interactive_components.get(component_id, {})
+        workflow = comp_data.get('workflow', '')
+        if workflow:
+            self._start_workflow_animation(workflow, comp_data.get('animation_frames', 60))
+    
+    def show_gpu_die_workflow(self):
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("GPU Die Architecture", "AD102 GPU Die Workflow")
+    
+    def show_memory_workflow(self):
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("GDDR6X Memory System", "GDDR6X Memory Workflow")
+    
+    def show_cooling_workflow(self):
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Cooling System", "RTX 4090 Cooling Workflow")
+    
+    def show_power_workflow(self):
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Power Delivery System", "24-Phase VRM Power Delivery")
+    
+    def show_memory_controller_workflow(self):
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Memory Controller", "Memory Controller Architecture")
+    
+    def show_tensor_core_workflow(self):
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Tensor Core Operations", "Tensor Core Matrix Math")
+    
+    def show_rt_core_workflow(self):
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Ray Tracing Pipeline", "RT Core Ray Tracing")
+    
+    def show_nvlink_workflow(self):
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("NVLink Interconnect", "NVLink 4.0 High-Speed Interconnect")
+    
+    def show_pcie_workflow(self):
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("PCIe Gen5 Interface", "PCIe Gen5 x16 Host Interface")
+    
+    def show_display_workflow(self):
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Display Output Pipeline", "Display Output Architecture")

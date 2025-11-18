@@ -62,6 +62,13 @@ class ComponentVisibilityPanel(QtWidgets.QGroupBox):
         self.performance_radio["balanced"].setChecked(True)
         
         layout.addWidget(performance_group)
+        isolate_group = QtWidgets.QGroupBox("Highlight Options")
+        isolate_layout = QtWidgets.QVBoxLayout(isolate_group)
+        self.isolate_checkbox = QtWidgets.QCheckBox("Isolate highlighted component")
+        self.isolate_checkbox.setToolTip("When enabled, only the highlighted component is rendered; others are hidden.")
+        isolate_layout.addWidget(self.isolate_checkbox)
+        layout.addWidget(isolate_group)
+        
         buttons_layout = QtWidgets.QHBoxLayout()
         self.show_all_btn = QtWidgets.QPushButton("Show All")
         self.hide_all_btn = QtWidgets.QPushButton("Hide All")
@@ -80,6 +87,7 @@ class ComponentVisibilityPanel(QtWidgets.QGroupBox):
         self.show_all_btn.clicked.connect(self.show_all_components)
         self.hide_all_btn.clicked.connect(self.hide_all_components)
         self.reset_btn.clicked.connect(self.reset_view)
+        self.isolate_checkbox.toggled.connect(self.on_isolate_toggled)
         
     def on_component_toggled(self, component: str, visible: bool):
         if self.view3d:
@@ -89,6 +97,16 @@ class ComponentVisibilityPanel(QtWidgets.QGroupBox):
         if checked and self.view3d:
             self.view3d.set_performance_mode(mode)
             self.update_component_checkboxes_for_mode(mode)
+            
+    def on_isolate_toggled(self, checked: bool):
+        if self.view3d:
+            try:
+                self.view3d.isolate_highlight = checked
+                # Invalidate display list cache so isolation applies immediately
+                setattr(self.view3d, '_gpu_cache_valid', False)
+            except Exception:
+                pass
+            self.view3d.update()
             
     def update_component_checkboxes_for_mode(self, mode: str):
         if mode == "low":
@@ -125,3 +143,8 @@ class ComponentVisibilityPanel(QtWidgets.QGroupBox):
             for key, visible in current_state.items():
                 if key in self.component_checkboxes:
                     self.component_checkboxes[key].setChecked(visible)
+            # Initialize isolate state from view3d
+            try:
+                self.isolate_checkbox.setChecked(bool(getattr(self.view3d, 'isolate_highlight', False)))
+            except Exception:
+                self.isolate_checkbox.setChecked(False)

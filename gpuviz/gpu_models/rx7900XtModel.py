@@ -6,10 +6,11 @@ Complete 1:1 replica with every component found on actual RX 7900 XT
 from .baseGpuModel import BaseGPUModel
 from typing import Dict, Tuple
 import math
+import time
 
 class RX7900XTModel(BaseGPUModel):
     """Ultra-realistic RX 7900 XT GPU model with all real-world components."""
-
+    
     # Component specifications
     LENGTH_MM = 267.0
     WIDTH_MM = 120.0
@@ -25,6 +26,95 @@ class RX7900XTModel(BaseGPUModel):
     PCB_LENGTH_MM = 247.0
     PCB_WIDTH_MM = 106.0
     PCB_THICKNESS_MM = 1.5
+
+    def __init__(self, view3d_instance):
+        super().__init__(view3d_instance)
+        self.interactive_components = self._define_interactive_components()
+        self.animation_state = {
+            'animation_time': 0.0,
+            'current_workflow': None,
+            'workflow_frame': 0,
+            'total_frames': 60,
+            'animation_start_time': 0.0,
+            'matmul_demo_active': False,
+            'memory_flow_active': False,
+            'tensor_core_demo': False
+        }
+
+    def _define_interactive_components(self):
+        """Define interactive components for RX 7900 XT."""
+        return {
+            "gpu_die": {
+                "position": (0, 0, 0.1),
+                "size": (4.0, 4.0, 0.1),
+                "tooltip": "Navi32 GCD + MCDs - 5,376 stream processors, 20GB GDDR6, 49 TFLOPS",
+                "workflow": "die_layout",
+                "animation_frames": 120
+            },
+            "vram_chips": {
+                "position": (-2, -2.5, 0.1),
+                "size": (1.2, 0.8, 0.1),
+                "tooltip": "12x Samsung GDDR6 chips - 320-bit bus, 20 Gbps, 800 GB/s bandwidth",
+                "workflow": "memory_access",
+                "animation_frames": 180
+            },
+            "cooling_fans": {
+                "position": (0, 0, 3.0),
+                "size": (5.2, 5.2, 0.3),
+                "tooltip": "Triple AMD Axial-tech fans - 11 blades each, optimized airflow",
+                "workflow": "cooling",
+                "animation_frames": 60
+            },
+            "power_delivery": {
+                "position": (-7, -1, 0.1),
+                "size": (1.0, 1.0, 0.2),
+                "tooltip": "16-phase VRM - 50A power stages, digital PWM, chiplet power delivery",
+                "workflow": "power_delivery",
+                "animation_frames": 90
+            },
+            "memory_controller": {
+                "position": (2, 0, 0.1),
+                "size": (0.6, 0.4, 0.15),
+                "tooltip": "Memory controller - GDDR6 interface, error correction, bandwidth optimization",
+                "workflow": "memory_controller",
+                "animation_frames": 120
+            },
+            "compute_units": {
+                "position": (1, 1, 0.1),
+                "size": (1.5, 1.5, 0.1),
+                "tooltip": "Compute units - 80 total WGPs, RDNA3 architecture, AI acceleration",
+                "workflow": "tensor_matmul",
+                "animation_frames": 240
+            },
+            "rt_accelerator": {
+                "position": (-1, 1, 0.1),
+                "size": (1.0, 1.0, 0.1),
+                "tooltip": "Ray tracing accelerator - Hardware RT, BVH acceleration, RDNA3 RT cores",
+                "workflow": "rt_core",
+                "animation_frames": 180
+            },
+            "infinity_cache": {
+                "position": (5, 0, 0.1),
+                "size": (0.8, 0.6, 0.1),
+                "tooltip": "Infinity Cache - 80MB L3 cache, bandwidth optimization, latency reduction",
+                "workflow": "infinity_cache",
+                "animation_frames": 90
+            },
+            "pcie_interface": {
+                "position": (10.5, 0, 0.1),
+                "size": (0.6, 0.4, 0.15),
+                "tooltip": "PCIe Gen5 x16 interface - 32 GT/s, 128 GB/s bidirectional bandwidth",
+                "workflow": "pcie",
+                "animation_frames": 120
+            },
+            "display_outputs": {
+                "position": (13.65, 0, -1),
+                "size": (0.8, 3.6, 0.8),
+                "tooltip": "Display outputs - 2x DP 2.1, 1x HDMI 2.1a, 8K@60Hz HDR support",
+                "workflow": "display",
+                "animation_frames": 60
+            }
+        }
 
     def get_model_name(self) -> str:
         return "AMD Radeon RX 7900 XT (Ultra Realistic)"
@@ -65,6 +155,292 @@ class RX7900XTModel(BaseGPUModel):
             "Resistors": "Surface mount resistors for signal conditioning",
             "PCB Traces": "Copper traces for power and data distribution"
         }
+
+    def handle_hover_event(self, component_id: str):
+        """Handle hover events for interactive components."""
+        self.highlight_component(component_id)
+        
+        comp_data = self.interactive_components.get(component_id, {})
+        workflow = comp_data.get('workflow', '')
+        
+        if workflow == 'tensor_matmul':
+            self.animation_state['tensor_core_demo'] = True
+        elif workflow == 'memory_access':
+            self.animation_state['memory_flow_active'] = True
+        elif workflow == 'die_layout':
+            self.animation_state['matmul_demo_active'] = True
+        
+    def handle_click_event(self, component_id: str):
+        """Handle click events for interactive components."""
+        self.handle_component_click(component_id)
+        
+        comp_data = self.interactive_components.get(component_id, {})
+        workflow = comp_data.get('workflow', '')
+        if workflow:
+            self._start_workflow_animation(workflow, comp_data.get('animation_frames', 60))
+    
+    def handle_hover_leave_event(self, component_id: str):
+        """Handle hover leave events for interactive components."""
+        self.animation_state['matmul_demo_active'] = False
+        self.animation_state['memory_flow_active'] = False
+        self.animation_state['tensor_core_demo'] = False
+
+    def update_animation(self, delta_time: float):
+        """Update animation state."""
+        self.animation_state['animation_time'] += delta_time
+
+        if 'current_workflow' in self.animation_state:
+            self.animation_state['workflow_frame'] += 1
+            if self.animation_state['workflow_frame'] >= self.animation_state['total_frames']:
+                self.animation_state['current_workflow'] = None
+                self.animation_state['workflow_frame'] = 0
+                self.animation_state['matmul_demo_active'] = False
+                self.animation_state['memory_flow_active'] = False
+                self.animation_state['tensor_core_demo'] = False
+    
+    def _start_workflow_animation(self, workflow_type: str, frame_count: int):
+        """Start a workflow animation."""
+        self.animation_state['current_workflow'] = workflow_type
+        self.animation_state['workflow_frame'] = 0
+        self.animation_state['total_frames'] = frame_count
+        self.animation_state['animation_start_time'] = time.time()
+    
+    def show_gpu_die_workflow(self):
+        """Show GPU die architecture workflow."""
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Navi32 Chiplet Architecture", "RX 7900 XT GPU Die Workflow")
+    
+    def show_memory_workflow(self):
+        """Show memory system workflow."""
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("GDDR6 Memory System", "RX 7900 XT Memory Workflow")
+    
+    def show_cooling_workflow(self):
+        """Show cooling system workflow."""
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Cooling System", "RX 7900 XT Cooling Workflow")
+    
+    def show_power_workflow(self):
+        """Show power delivery workflow."""
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Power Delivery System", "16-Phase VRM Power Delivery")
+    
+    def show_memory_controller_workflow(self):
+        """Show memory controller workflow."""
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Memory Controller", "RX 7900 XT Memory Controller")
+    
+    def show_tensor_core_workflow(self):
+        """Show tensor core workflow."""
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Compute Unit Operations", "RX 7900 XT CU Math")
+    
+    def show_rt_core_workflow(self):
+        """Show RT core workflow."""
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Ray Tracing Pipeline", "RX 7900 XT RT Pipeline")
+    
+    def show_nvlink_workflow(self):
+        """Show NVLink workflow."""
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Infinity Cache System", "RX 7900 XT Infinity Cache")
+    
+    def show_pcie_workflow(self):
+        """Show PCIe workflow."""
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("PCIe Gen5 Interface", "RX 7900 XT PCIe Gen5 x16")
+    
+    def show_display_workflow(self):
+        """Show display output workflow."""
+        if self.view3d and hasattr(self.view3d, 'show_workflow_animation'):
+            self.view3d.show_workflow_animation("Display Output Pipeline", "RX 7900 XT Display Pipeline")
+    
+    def _draw_matmul_animation(self):
+        """Draw matrix multiplication animation."""
+        if not self.view3d:
+            return
+
+        frame = self.animation_state.get('workflow_frame', 0)
+        progress = frame / max(1, self.animation_state.get('total_frames', 60))
+
+        self._draw_matrix_a_animation(progress)
+        self._draw_matrix_b_animation(progress)
+        self._draw_result_matrix_animation(progress)
+        self._draw_tensor_core_operations(progress)
+
+    def _draw_matrix_a_animation(self, progress: float):
+        """Draw matrix A loading animation."""
+        tiles = 4
+        for i in range(tiles):
+            tile_progress = min(1.0, max(0.0, progress * tiles - i))
+            x = -6 + tile_progress * 8
+            y = -1.5 + i * 0.5
+            color = (0.2 + tile_progress * 0.3, 0.3, 0.8, 0.8)
+            self.view3d._draw_3d_box(x - 0.5, y - 0.5, 0.5, 1.0, 1.0, 0.2, color)
+
+    def _draw_matrix_b_animation(self, progress: float):
+        """Draw matrix B loading animation."""
+        tiles = 3
+        for i in range(tiles):
+            tile_progress = min(1.0, max(0.0, progress * tiles - i))
+            x = 4 - tile_progress * 6
+            y = -1.5 + i * 0.5
+            color = (0.8, 0.3 + tile_progress * 0.3, 0.2, 0.8)
+            self.view3d._draw_3d_box(x - 0.5, y - 0.5, 0.5, 1.0, 1.0, 0.2, color)
+
+    def _draw_result_matrix_animation(self, progress: float):
+        """Draw result matrix computation animation."""
+        tiles_x, tiles_y = 2, 2
+        for i in range(tiles_x):
+            for j in range(tiles_y):
+                tile_idx = i * tiles_y + j
+                tile_progress = min(1.0, max(0.0, progress * 4 - tile_idx))
+                x = -3 + i * 2
+                y = -3 + j * 2
+                intensity = tile_progress
+                color = (intensity * 0.5, intensity * 0.8, intensity * 0.3, 0.9)
+                self.view3d._draw_3d_box(x - 1, y - 1, 0.3, 2.0, 2.0, 0.1, color)
+
+    def _draw_tensor_core_operations(self, progress: float):
+        """Draw tensor core operation animation."""
+        cores = 6
+        for i in range(cores):
+            core_progress = min(1.0, max(0.0, progress * cores - i))
+            x = 2 + (i % 3) * 1.0
+            y = 0.5 + (i // 3) * 1.0
+            intensity = core_progress * 0.8 + 0.2
+            color = (intensity, 0.2, intensity, 1.0)
+            self.view3d._draw_3d_box(x - 0.25, y - 0.25, 0.4, 0.5, 0.5, 0.2, color)
+
+    def _draw_memory_flow_animation(self):
+        """Draw memory flow animation."""
+        if not self.view3d:
+            return
+
+        frame = self.animation_state.get('workflow_frame', 0)
+        progress = frame / max(1, self.animation_state.get('total_frames', 120))
+
+        self._draw_hbm_to_l2_flow(progress)
+        self._draw_l2_to_l1_flow(progress)
+        self._draw_l1_to_smem_flow(progress)
+        self._draw_smem_to_registers_flow(progress)
+
+    def _draw_hbm_to_l2_flow(self, progress: float):
+        """Draw HBM to L2 cache flow."""
+        particles = 12
+        for i in range(particles):
+            particle_progress = (progress * particles + i) % particles / particles
+            x = -3 + particle_progress * 8
+            y = 0 + math.sin(particle_progress * math.pi * 4) * 1.0
+            color = (0.3, 0.3, 0.8, 0.9)
+            self.view3d._draw_3d_box(x - 0.1, y - 0.1, 0.1, 0.2, 0.2, 0.05, color)
+
+    def _draw_l2_to_l1_flow(self, progress: float):
+        """Draw L2 to L1 cache flow."""
+        particles = 8
+        for i in range(particles):
+            particle_progress = (progress * particles + i) % particles / particles
+            x = -0.5 + particle_progress * 4
+            y = -2 + math.sin(particle_progress * math.pi * 6) * 0.6
+            color = (0.6, 0.4, 0.2, 0.9)
+            self.view3d._draw_3d_box(x - 0.08, y - 0.08, 0.15, 0.16, 0.16, 0.04, color)
+
+    def _draw_l1_to_smem_flow(self, progress: float):
+        """Draw L1 to shared memory flow."""
+        particles = 6
+        for i in range(particles):
+            particle_progress = (progress * particles + i) % particles / particles
+            x = 2 + particle_progress * 2
+            y = 1 + math.sin(particle_progress * math.pi * 8) * 0.3
+            color = (0.8, 0.6, 0.1, 0.9)
+            self.view3d._draw_3d_box(x - 0.06, y - 0.06, 0.2, 0.12, 0.12, 0.03, color)
+
+    def _draw_smem_to_registers_flow(self, progress: float):
+        """Draw shared memory to registers flow."""
+        particles = 4
+        for i in range(particles):
+            particle_progress = (progress * particles + i) % particles / particles
+            x = 3.5 + particle_progress * 1.5
+            y = 2 + math.sin(particle_progress * math.pi * 10) * 0.2
+            color = (0.9, 0.2, 0.2, 0.9)
+            self.view3d._draw_3d_box(x - 0.04, y - 0.04, 0.25, 0.08, 0.08, 0.02, color)
+
+    def _draw_tensor_core_animation(self):
+        """Draw tensor core pipeline animation."""
+        if not self.view3d:
+            return
+
+        frame = self.animation_state.get('workflow_frame', 0)
+        progress = frame / max(1, self.animation_state.get('total_frames', 240))
+
+        self._draw_wgmma_pipeline(progress)
+        self._draw_matrix_tiles(progress)
+        self._draw_accumulator_updates(progress)
+
+    def _draw_wgmma_pipeline(self, progress: float):
+        """Draw WGMMA pipeline stages."""
+        stages = ['Load A', 'Load B', 'MMA', 'Accumulate', 'Store']
+        for i, stage in enumerate(stages):
+            stage_progress = min(1.0, max(0.0, progress * 5 - i))
+            x = 0.5 + i * 1.0
+            y = 4
+            intensity = stage_progress
+            color = (intensity * 0.5, intensity * 0.8, intensity * 0.5, 0.8)
+            self.view3d._draw_3d_box(x - 0.4, y - 0.4, 0.6, 0.8, 0.8, 0.3, color)
+
+    def _draw_matrix_tiles(self, progress: float):
+        """Draw matrix tile loading."""
+        a_tiles = 2
+        for i in range(a_tiles):
+            tile_progress = min(1.0, max(0.0, progress * a_tiles - i))
+            x = -0.5 + i * 0.8
+            y = 2.5
+            color = (0.2, 0.5 + tile_progress * 0.3, 0.8, 0.9)
+            self.view3d._draw_3d_box(x - 0.2, y - 0.2, 0.5, 0.4, 0.4, 0.2, color)
+
+        b_tiles = 2
+        for i in range(b_tiles):
+            tile_progress = min(1.0, max(0.0, progress * b_tiles - i))
+            x = -0.5 + i * 0.8
+            y = 1.5
+            color = (0.8, 0.5 + tile_progress * 0.3, 0.2, 0.9)
+            self.view3d._draw_3d_box(x - 0.2, y - 0.2, 0.5, 0.4, 0.4, 0.2, color)
+
+    def _draw_accumulator_updates(self, progress: float):
+        """Draw accumulator updates."""
+        tiles = 4
+        for i in range(2):
+            for j in range(2):
+                tile_idx = i * 2 + j
+                tile_progress = min(1.0, max(0.0, progress * tiles - tile_idx))
+                x = 4 + i * 0.4
+                y = 1.5 + j * 0.4
+                intensity = tile_progress * 0.7 + 0.3
+                color = (intensity * 0.3, intensity * 0.6, intensity * 0.9, 0.8)
+                self.view3d._draw_3d_box(x - 0.12, y - 0.12, 0.4, 0.24, 0.24, 0.1, color)
+    
+    def handle_component_click(self, component_name: str):
+        """Handle component click events."""
+        if component_name == "gpu_die":
+            self.show_gpu_die_workflow()
+        elif component_name == "vram_chips":
+            self.show_memory_workflow()
+        elif component_name == "cooling_fans":
+            self.show_cooling_workflow()
+        elif component_name == "power_delivery":
+            self.show_power_workflow()
+        elif component_name == "memory_controller":
+            self.show_memory_controller_workflow()
+        elif component_name == "compute_units":
+            self.show_tensor_core_workflow()
+        elif component_name == "rt_accelerator":
+            self.show_rt_core_workflow()
+        elif component_name == "infinity_cache":
+            self.show_nvlink_workflow()
+        elif component_name == "pcie_interface":
+            self.show_pcie_workflow()
+        elif component_name == "display_outputs":
+            self.show_display_workflow()
 
     def draw_chassis(self, lod: int):
         """Draw RX 7900 XT chassis."""

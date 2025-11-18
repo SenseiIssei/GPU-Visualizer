@@ -20,6 +20,7 @@ PRESETS: Dict[str, GPULayout] = {
     "RX 7900 XT (RDNA3 – Navi 31)": GPULayout.from_spec("RX 7900 XT", gpc_count=10, sms_per_gpc=2, cores_per_sm=64),
     "RX 7800 XT (RDNA3 – Navi 32)": GPULayout.from_spec("RX 7800 XT", gpc_count=8, sms_per_gpc=2, cores_per_sm=64),
     "RX 7700 XT (RDNA3 – Navi 33)": GPULayout.from_spec("RX 7700 XT", gpc_count=6, sms_per_gpc=2, cores_per_sm=64),
+    "NVIDIA H100 SXM5 - Ultra Detailed (Interactive)": GPULayout.from_spec("H100 SXM5", gpc_count=8, sms_per_gpc=18, cores_per_sm=128),
     "Compact Demo": GPULayout.from_spec("Compact", gpc_count=3, sms_per_gpc=4, cores_per_sm=32),
 }
 

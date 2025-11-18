@@ -24,7 +24,7 @@ def test_gpu_model_switching():
     view3d = GPU3DView()
 
     # Test switching between different GPU models
-    gpu_models = ['RTX 4080', 'RTX 4070', 'RTX 4060', 'RTX 4090', 'RX 7900 XTX', 'RX 7900 XT', 'RX 7900 GRE', 'RX 7800 XT', 'RX 7700 XT', 'RTX 4070 Ti', 'RTX 4060 Ti']
+    gpu_models = ['RTX 4080', 'RTX 4070', 'RTX 4060', 'RTX 4090', 'RX 7900 XTX', 'RX 7900 XT', 'RX 7900 GRE', 'RX 7800 XT', 'RX 7700 XT', 'RTX 4070 Ti', 'RTX 4060 Ti', 'Ultra Detailed GPU']
 
     for model_name in gpu_models:
         try:
