@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+*.egg
+
+# Environments
+.env
+.venv
+venv/
+ENV/
+
+# Build & dist
+build/
+dist/
+wheelhouse/
+*.spec
+
+# IDEs & tools
+.vscode/
+.idea/
+*.iml
+.pytest_cache/
+.coverage*
+.mypy_cache/
+.pyre/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Qt / PySide
+*.qrc
+*.ui
+*.qmlc
+*.jsc
+
+# Logs
+*.log
+logs/
+
+# Local data
+*.json.backup
