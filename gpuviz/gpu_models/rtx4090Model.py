@@ -12,19 +12,19 @@ class RTX4090Model(BaseGPUModel):
     """Ultra-realistic RTX 4090 GPU model optimized for smooth rendering."""
     
     # Component specifications
-    LENGTH_MM = 336.0  # 336mm length
-    WIDTH_MM = 140.0   # 140mm width  
-    HEIGHT_MM = 61.0   # 61mm height (3 slots)
-    GPU_DIE_SIZE_MM = 18.0  # AD102 die size
-    GPU_DIE_THICKNESS_MM = 0.8  # Silicon die thickness
-    VRAM_CHIPS = 24  # 24 GDDR6X chips
-    VRAM_CHIP_SIZE_MM = 14.0  # VRAM chip dimensions
-    HEATSINK_FINS = 150  # Number of heatsink fins
-    HEAT_PIPES = 10  # 10 heat pipes
-    FAN_COUNT = 3  # Triple fan design
-    PCB_LENGTH_MM = 304.0  # PCB length
-    PCB_WIDTH_MM = 137.0   # PCB width
-    PCB_THICKNESS_MM = 1.5  # PCB thickness
+    LENGTH_MM = 336.0
+    WIDTH_MM = 140.0
+    HEIGHT_MM = 61.0
+    GPU_DIE_SIZE_MM = 18.0
+    GPU_DIE_THICKNESS_MM = 0.8
+    VRAM_CHIPS = 24
+    VRAM_CHIP_SIZE_MM = 14.0
+    HEATSINK_FINS = 150
+    HEAT_PIPES = 10
+    FAN_COUNT = 3
+    PCB_LENGTH_MM = 304.0
+    PCB_WIDTH_MM = 137.0
+    PCB_THICKNESS_MM = 1.5
     
     def get_model_name(self) -> str:
         return "NVIDIA GeForce RTX 4090 (Ultra Realistic)"
@@ -67,32 +67,32 @@ class RTX4090Model(BaseGPUModel):
 
     def draw_chassis(self, lod: int):
         """Draw RTX 4090 chassis with optimized ventilation."""
-        if hasattr(self.view3d, 'show_chassis') and self.view3d.show_chassis and self.should_render_component("chassis"):
+        if self.view3d and hasattr(self.view3d, 'show_chassis') and self.view3d.show_chassis and self.should_render_component("chassis"):
             self._draw_rtx4090_chassis()
         
     def draw_cooling_system(self, lod: int):
         """Draw RTX 4090 cooling system."""
-        if hasattr(self.view3d, 'show_cooling') and self.view3d.show_cooling and self.should_render_component("cooling"):
+        if self.view3d and hasattr(self.view3d, 'show_cooling') and self.view3d.show_cooling and self.should_render_component("cooling"):
             self._draw_rtx4090_heatsink()
             self._draw_rtx4090_heat_pipes()
             self._draw_rtx4090_fans()
         
     def draw_pcb_and_components(self, lod: int):
         """Draw RTX 4090 PCB and all components."""
-        if hasattr(self.view3d, 'show_pcb') and self.view3d.show_pcb and self.should_render_component("pcb"):
+        if self.view3d and hasattr(self.view3d, 'show_pcb') and self.view3d.show_pcb and self.should_render_component("pcb"):
             self._draw_rtx4090_pcb()
-        if hasattr(self.view3d, 'show_gpu_die') and self.view3d.show_gpu_die and self.should_render_component("gpu_die"):
+        if self.view3d and hasattr(self.view3d, 'show_gpu_die') and self.view3d.show_gpu_die and self.should_render_component("gpu_die"):
             self._draw_rtx4090_gpu_die()
-        if hasattr(self.view3d, 'show_vram') and self.view3d.show_vram and self.should_render_component("vram"):
+        if self.view3d and hasattr(self.view3d, 'show_vram') and self.view3d.show_vram and self.should_render_component("vram"):
             self._draw_rtx4090_vram()
-        if hasattr(self.view3d, 'show_power_delivery') and self.view3d.show_power_delivery and self.should_render_component("power_delivery"):
+        if self.view3d and hasattr(self.view3d, 'show_power_delivery') and self.view3d.show_power_delivery and self.should_render_component("power_delivery"):
             self._draw_rtx4090_power_delivery()
         
     def draw_backplate(self, lod: int):
         """Draw RTX 4090 backplate."""
-        if hasattr(self.view3d, 'show_backplate') and self.view3d.show_backplate and self.should_render_component("backplate"):
+        if self.view3d and hasattr(self.view3d, 'show_backplate') and self.view3d.show_backplate and self.should_render_component("backplate"):
             self._draw_rtx4090_backplate()
-        if hasattr(self.view3d, 'show_io_bracket') and self.view3d.show_io_bracket and self.should_render_component("io_bracket"):
+        if self.view3d and hasattr(self.view3d, 'show_io_bracket') and self.view3d.show_io_bracket and self.should_render_component("io_bracket"):
             self._draw_rtx4090_io_bracket()
 
     def draw_complete_model(self, lod: int):
@@ -109,14 +109,17 @@ class RTX4090Model(BaseGPUModel):
 
     def _draw_rtx4090_pcb(self):
         """Draw ultra-detailed RTX 4090 PCB with all real-world components."""
+        if not self.view3d:
+            return
+            
         # Main PCB board - realistic dimensions (304mm x 137mm x 1.5mm)
-        pcb_length = self.PCB_LENGTH_MM / 10  # Scale to our coordinate system
+        pcb_length = self.PCB_LENGTH_MM / 10
         pcb_width = self.PCB_WIDTH_MM / 10
         pcb_thickness = self.PCB_THICKNESS_MM / 10
         
         # PCB substrate with NVIDIA black color
-        pcb_color = (0.05, 0.05, 0.08, 1.0)  # NVIDIA black PCB
-        self.view3d._draw_3d_box(-pcb_length/2, -pcb_width/2, -pcb_thickness/2, 
+        pcb_color = (0.05, 0.05, 0.08, 1.0)
+        self.view3d._draw_3d_box(-pcb_length/2, -pcb_width/2, -pcb_thickness/2,
                                  pcb_length, pcb_width, pcb_thickness, pcb_color)
         
         # Draw PCB traces and microscopic components
@@ -131,12 +134,12 @@ class RTX4090Model(BaseGPUModel):
 
     def _draw_pcb_traces(self, pcb_length, pcb_width):
         """Draw realistic PCB traces."""
-        trace_color = (0.7, 0.6, 0.3, 0.8)  # Copper color
+        trace_color = (0.7, 0.6, 0.3, 0.8)
         
         # Main power traces (thicker)
         for i in range(8):
             y = -pcb_width/2 + (i + 1) * (pcb_width / 9)
-            self.view3d._draw_3d_box(-pcb_length/2 + 2, y - 0.1, 0.08, 
+            self.view3d._draw_3d_box(-pcb_length/2 + 2, y - 0.1, 0.08,
                                      pcb_length - 4, 0.2, 0.05, trace_color)
         
         # Data traces (medium thickness)
@@ -207,7 +210,7 @@ class RTX4090Model(BaseGPUModel):
     def _draw_rtx4090_gpu_die(self):
         """Draw AD102 GPU die with detailed architecture."""
         # AD102 die package
-        die_size = self.GPU_DIE_SIZE_MM / 10  # Scale to our coordinate system
+        die_size = self.GPU_DIE_SIZE_MM / 10
         
         # GPU package substrate
         self.view3d._draw_3d_box(-die_size/2, -die_size/2, 0, die_size, die_size, 0.1,
@@ -301,7 +304,7 @@ class RTX4090Model(BaseGPUModel):
         
         # Microscopic bonding wires
         if front:
-            wire_color = (0.8, 0.8, 0.7, 1.0)  # Gold
+            wire_color = (0.8, 0.8, 0.7, 1.0)
             for i in range(12):
                 wire_x = x - 0.45 + i * 0.07
                 self._draw_bonding_wire(wire_x, y, z + 0.18, wire_x, y - 0.35, z + 0.05, wire_color)
@@ -427,7 +430,7 @@ class RTX4090Model(BaseGPUModel):
     def _draw_rtx4090_fans(self):
         """Draw triple Axial-tech fans with 13 blades each."""
         fan_positions = [(-6, 0), (0, 0), (6, 0)]
-        fan_radius = 3.2  # RTX 4090 fan size
+        fan_radius = 3.2
         
         for i, (x, y) in enumerate(fan_positions):
             # Fan hub
@@ -454,7 +457,7 @@ class RTX4090Model(BaseGPUModel):
         x2 = cx + radius * math.cos(angle)
         y2 = cy + radius * math.sin(angle)
         
-        self.view3d._draw_3d_box(x1 - blade_width/2, y1 - 0.1, cz, 
+        self.view3d._draw_3d_box(x1 - blade_width/2, y1 - 0.1, cz,
                                  blade_width, blade_length, 0.05, color)
 
     def _draw_rtx4090_chassis(self):

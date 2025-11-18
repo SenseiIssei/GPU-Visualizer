@@ -7,16 +7,23 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
 from OpenGL.GL import glColor4f
 import math
+import weakref
 
 class BaseGPUModel(ABC):
     """Base class for all GPU 3D models."""
     
     def __init__(self, view3d_instance):
-        self.view3d = view3d_instance
+        # Use weak reference to prevent circular references with Qt objects
+        self.view3d_ref = weakref.ref(view3d_instance)
         self.components = {}
         self.component_explanations = {}
         self.highlighted_component = None
         self._open_gl_initialized = False
+        
+    @property
+    def view3d(self):
+        """Get the view3d instance, returning None if it's been garbage collected."""
+        return self.view3d_ref() if self.view3d_ref() is not None else None
         
     @abstractmethod
     def get_model_name(self) -> str:
@@ -60,7 +67,6 @@ class BaseGPUModel(ABC):
         
     def draw_complete_model(self, lod: int):
         """Draw the complete GPU model with all components."""
-        # Draw from back to front for proper depth
         self.draw_backplate(lod)
         self.draw_pcb_and_components(lod)
         self.draw_cooling_system(lod)
@@ -69,13 +75,10 @@ class BaseGPUModel(ABC):
     def set_component_color(self, component_name: str, base_color: Tuple[float, float, float, float]):
         """Set color based on highlighting state."""
         if self.highlighted_component == component_name:
-            # Highlighted component: bright red
             glColor4f(1.0, 0.2, 0.1, 1.0)
         elif self.highlighted_component is not None:
-            # Other components: transparent grey
             glColor4f(0.5, 0.5, 0.5, 0.2)
         else:
-            # Normal state: original color
             glColor4f(*base_color)
             
     def is_component_highlighted(self, component_name: str) -> bool:
@@ -84,32 +87,40 @@ class BaseGPUModel(ABC):
         
     def should_render_component(self, component_name: str) -> bool:
         """Check if component should be rendered based on highlighting state."""
-        # If nothing is highlighted, render everything
         if self.highlighted_component is None:
             return True
-        # If this component is highlighted, render it
         if self.highlighted_component == component_name:
             return True
-        # Otherwise, don't render (for focusing on specific component)
         return False
         
     def highlight_component(self, component_name: str):
         """Highlight a specific component."""
         self.highlighted_component = component_name
-        self.view3d.update()
+        if self.view3d:
+            self.view3d.update()
         
     def clear_highlight(self):
         """Clear component highlighting."""
         self.highlighted_component = None
-        self.view3d.update()
+        if self.view3d:
+            self.view3d.update()
     
     def initialize_opengl(self):
         """Initialize OpenGL state for this GPU model."""
         if not self._open_gl_initialized:
             self._open_gl_initialized = True
-            # Subclasses can override this for specific OpenGL initialization
             pass
     
-    def is_opengl_initialized(self) -> bool:
-        """Check if OpenGL has been initialized for this model."""
-        return self._open_gl_initialized
+    def __del__(self):
+        """Cleanup method to ensure proper disposal of resources."""
+        try:
+            # Clear weak reference
+            if hasattr(self, 'view3d_ref'):
+                self.view3d_ref = None
+            # Clear any cached data
+            if hasattr(self, 'components'):
+                self.components.clear()
+            if hasattr(self, 'component_explanations'):
+                self.component_explanations.clear()
+        except:
+            pass

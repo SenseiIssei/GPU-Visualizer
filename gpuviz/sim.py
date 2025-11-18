@@ -15,6 +15,7 @@ Key Components:
 import math, random, time
 from PySide6 import QtCore
 from .models import GPULayout
+from typing import Optional
 
 def clamp01(x: float) -> float:
     return max(0.0, min(1.0, x))
@@ -40,9 +41,10 @@ class DVFSModel:
 class Simulation(QtCore.QObject):
     updated = QtCore.Signal()
 
-    def __init__(self, layout: GPULayout):
+    def __init__(self, layout: GPULayout, logger: Optional[object] = None):
         super().__init__()
         self.layout = layout
+        self.logger = logger
         self.running = False
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.step)
@@ -53,29 +55,53 @@ class Simulation(QtCore.QObject):
         self.dvfs = DVFSModel()
         self._last_activity = None
         self._last_wall = time.time()
+        self._step_count = 0
+        self._start_time = time.time()
+        
+        if self.logger:
+            total_cores = sum(len(sm.cores) for g in layout.gpcs for sm in g.sms)
+            self.logger.log_simulation_event(f"Simulation initialized with {len(layout.gpcs)} GPCs, {len([sm for g in layout.gpcs for sm in g.sms])} SMs, {total_cores} cores")
 
     def set_speed_ms(self, ms: int):
+        old_speed = self.speed_ms
         self.speed_ms = max(16, int(ms))
         if self.running:
             self.timer.start(self.speed_ms)
+        if self.logger:
+            self.logger.log(f"Simulation speed changed from {old_speed}ms to {self.speed_ms}ms", "INFO")
 
     def set_global_util(self, pct: int):
+        old_util = self.global_util * 100
         self.global_util = clamp01(pct / 100.0)
+        if self.logger:
+            self.logger.log(f"Global utilization changed from {old_util:.1f}% to {pct:.1f}%", "INFO")
 
     def set_power_mv(self, mv: int):
+        old_volts = self.power_volts
         self.power_volts = max(0.6, min(1.3, mv / 1000.0))
+        if self.logger:
+            self.logger.log(f"Power voltage changed from {old_volts:.3f}V to {self.power_volts:.3f}V", "INFO")
 
     def start(self):
         if not self.running:
             self.running = True
             self._last_wall = time.time()
+            self._start_time = time.time()
+            self._step_count = 0
             self.timer.start(self.speed_ms)
+            if self.logger:
+                self.logger.log_simulation_event("Simulation started")
 
     def stop(self):
-        self.running = False
-        self.timer.stop()
+        if self.running:
+            self.running = False
+            self.timer.stop()
+            runtime = time.time() - self._start_time
+            if self.logger:
+                self.logger.log_simulation_event(f"Simulation stopped after {runtime:.1f}s ({self._step_count} steps)")
 
     def step(self):
+        start_time = time.time()
         now = time.time()
         dt = now - self._last_wall
         self._last_wall = now
@@ -95,4 +121,13 @@ class Simulation(QtCore.QObject):
                     c.activity = clamp01(0.7 * sm.activity + 0.3 * (base + jitter) + random.uniform(-0.04, 0.04))
                     c.temperature = clamp01((tempC - 25) / 80.0)
                     c.mem_pressure = clamp01(0.2 + 0.8 * abs(math.sin(self.phase * 0.6 + i * 0.07)))
+        
+        self._step_count += 1
+        step_duration = (time.time() - start_time) * 1000
+        
+        if self.logger and self._step_count % 100 == 0:
+            avg_activity = sum(sm.activity for g in self.layout.gpcs for sm in g.sms) / max(1, len([sm for g in self.layout.gpcs for sm in g.sms]))
+            self.logger.log_performance("Simulation step", step_duration)
+            self.logger.log(f"Avg SM activity: {avg_activity:.2f}, Temp: {tempC:.1f}°C, Power: {watts:.1f}W, Freq: {f_ghz:.2f}GHz", "PERFORMANCE")
+        
         self.updated.emit()

@@ -25,7 +25,6 @@ class Controls(QtWidgets.QWidget):
     stop_clicked = QtCore.Signal()
     import_json_clicked = QtCore.Signal()
     export_json_clicked = QtCore.Signal()
-    toggled_3d = QtCore.Signal(bool)
     log_window_clicked = QtCore.Signal()
 
     def __init__(self):
@@ -43,16 +42,6 @@ class Controls(QtWidgets.QWidget):
         self.log_button = LogWindowButton(self.log_window)
         root.addWidget(self.log_button)
         self.log_button.clicked.connect(self.log_window_clicked)
-
-        mode_group = QtWidgets.QGroupBox("Display Mode")
-        mode_lay = QtWidgets.QHBoxLayout(mode_group)
-        self.radio2d = QtWidgets.QRadioButton("2D")
-        self.radio3d = QtWidgets.QRadioButton("3D")
-        self.radio3d.setChecked(True)
-        mode_lay.addWidget(self.radio2d)
-        mode_lay.addWidget(self.radio3d)
-        root.addWidget(mode_group)
-        self.radio3d.toggled.connect(self.toggled_3d)
 
         preset_group = QtWidgets.QGroupBox("GPU Layout Preset")
         preset_lay = QtWidgets.QFormLayout(preset_group)

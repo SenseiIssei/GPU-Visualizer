@@ -26,6 +26,11 @@ from gpuviz.componentHighlighter import ComponentHighlighter, ComponentType
 from gpuviz.componentVisibilityPanel import ComponentVisibilityPanel
 from PySide6 import QtCore, QtWidgets, QtGui
 
+import json
+import sys
+import time
+from typing import Optional
+
 class DetailedComponentPanel(QtWidgets.QWidget):
     component_selected = QtCore.Signal(str)
     
@@ -59,11 +64,11 @@ class DetailedComponentPanel(QtWidgets.QWidget):
         self.component_list = QtWidgets.QListWidget()
         self.component_list.setStyleSheet("""
             QListWidget {
-                background-color: #2d2d2d;
+                background-color: #2e2e2e;
                 border: 1px solid #404040;
                 border-radius: 8px;
                 padding: 8px;
-                color: #e0e0e0;
+                color: #ffffff;
                 font-size: 12px;
             }
             QListWidget::item {
@@ -74,11 +79,11 @@ class DetailedComponentPanel(QtWidgets.QWidget):
             }
             QListWidget::item:selected {
                 background-color: #4fc3f7;
-                color: #1a1a1a;
+                color: #ffffff;
                 font-weight: bold;
             }
             QListWidget::item:hover {
-                background-color: #404040;
+                background-color: #3e3e3e;
             }
         """)
         
@@ -90,26 +95,7 @@ class DetailedComponentPanel(QtWidgets.QWidget):
         self.highlight_btn = QtWidgets.QPushButton("🔦 Highlight")
         self.highlight_btn.setStyleSheet("""
             QPushButton {
-                background-color: #4fc3f7;
-                color: #1a1a1a;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 600;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #29b6f6;
-            }
-            QPushButton:pressed {
-                background-color: #0288d1;
-            }
-        """)
-        
-        self.clear_btn = QtWidgets.QPushButton("🧹 Clear")
-        self.clear_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #757575;
+                background-color: #2e2e2e;
                 color: #ffffff;
                 border: none;
                 border-radius: 6px;
@@ -118,10 +104,29 @@ class DetailedComponentPanel(QtWidgets.QWidget):
                 font-size: 12px;
             }
             QPushButton:hover {
-                background-color: #616161;
+                background-color: #3e3e3e;
             }
             QPushButton:pressed {
-                background-color: #424242;
+                background-color: #4e4e4e;
+            }
+        """)
+        
+        self.clear_btn = QtWidgets.QPushButton("🧹 Clear")
+        self.clear_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2e2e2e;
+                color: #ffffff;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 600;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #3e3e3e;
+            }
+            QPushButton:pressed {
+                background-color: #4e4e4e;
             }
         """)
         
@@ -137,11 +142,11 @@ class DetailedComponentPanel(QtWidgets.QWidget):
         self.component_details = QtWidgets.QTextBrowser()
         self.component_details.setStyleSheet("""
             QTextBrowser {
-                background-color: #2d2d2d;
+                background-color: #2e2e2e;
                 border: 1px solid #404040;
                 border-radius: 8px;
                 padding: 12px;
-                color: #e0e0e0;
+                color: #ffffff;
                 font-size: 11px;
                 line-height: 1.5;
             }
@@ -152,7 +157,7 @@ class DetailedComponentPanel(QtWidgets.QWidget):
                 margin-bottom: 8px;
             }
             QTextBrowser strong {
-                color: #81c784;
+                color: #ffffff;
                 font-weight: bold;
             }
             QTextBrowser table {
@@ -173,10 +178,10 @@ class DetailedComponentPanel(QtWidgets.QWidget):
         self.performance_indicator = QtWidgets.QLabel("⚡ Performance Impact: None")
         self.performance_indicator.setStyleSheet("""
             QLabel {
-                background-color: #404040;
+                background-color: #2a2a2a;
                 border-radius: 6px;
                 padding: 8px 12px;
-                color: #e0e0e0;
+                color: #ffffff;
                 font-size: 11px;
                 font-weight: 600;
             }
@@ -255,7 +260,7 @@ class DetailedComponentPanel(QtWidgets.QWidget):
                 self.highlight_btn.setText("🔦 Active")
                 self.highlight_btn.setStyleSheet("""
                     QPushButton {
-                        background-color: #4caf50;
+                        background-color: #4fc3f7;
                         color: #ffffff;
                         border: none;
                         border-radius: 6px;
@@ -274,8 +279,8 @@ class DetailedComponentPanel(QtWidgets.QWidget):
         self.highlight_btn.setText("🔦 Highlight")
         self.highlight_btn.setStyleSheet("""
             QPushButton {
-                background-color: #4fc3f7;
-                color: #1a1a1a;
+                background-color: #2e2e2e;
+                color: #ffffff;
                 border: none;
                 border-radius: 6px;
                 padding: 8px 16px;
@@ -283,10 +288,10 @@ class DetailedComponentPanel(QtWidgets.QWidget):
                 font-size: 12px;
             }
             QPushButton:hover {
-                background-color: #29b6f6;
+                background-color: #3e3e3e;
             }
             QPushButton:pressed {
-                background-color: #0288d1;
+                background-color: #4e4e4e;
             }
         """)
         
@@ -298,10 +303,10 @@ class DetailedComponentPanel(QtWidgets.QWidget):
         self.performance_indicator.setText("⚡ Performance Impact: None")
         self.performance_indicator.setStyleSheet("""
             QLabel {
-                background-color: #404040;
+                background-color: #2a2a2a;
                 border-radius: 6px;
                 padding: 8px 12px;
-                color: #e0e0e0;
+                color: #ffffff;
                 font-size: 11px;
                 font-weight: 600;
             }
@@ -385,8 +390,8 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         }
         
         QWidget {
-            background-color: #1a1a1a;
-            color: #e0e0e0;
+            background-color: #1e1e1e;
+            color: #ffffff;
             font-family: 'Segoe UI', 'Arial', sans-serif;
             font-size: 12px;
         }
@@ -397,21 +402,21 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
             background-color: transparent;
         }
         
-        QLabel#title {
+        QLabel[class="title"] {
             color: #4fc3f7;
             font-size: 18px;
             font-weight: 700;
             padding: 8px;
         }
         
-        QLabel#subtitle {
+        QLabel[class="subtitle"] {
             color: #81c784;
             font-size: 14px;
             font-weight: 600;
             padding: 4px;
         }
         
-        QLabel#description {
+        QLabel[class="caption"] {
             color: #b0bec5;
             font-size: 11px;
             font-weight: 400;
@@ -420,7 +425,7 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         }
         
         QPushButton {
-            background-color: #2d2d2d;
+            background-color: #2e2e2e;
             color: #ffffff;
             border: 2px solid #404040;
             border-radius: 8px;
@@ -431,24 +436,24 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         }
         
         QPushButton:hover {
-            background-color: #404040;
-            border-color: #4fc3f7;
-            color: #4fc3f7;
+            background-color: #3e3e3e;
+            border-color: #606060;
+            color: #ffffff;
         }
         
         QPushButton:pressed {
-            background-color: #4fc3f7;
-            color: #1a1a1a;
+            background-color: #4e4e4e;
+            color: #ffffff;
         }
         
         QPushButton:disabled {
-            background-color: #1f1f1f;
+            background-color: #2a2a2a;
             color: #666666;
             border-color: #333333;
         }
         
         QComboBox {
-            background-color: #2d2d2d;
+            background-color: #2e2e2e;
             color: #ffffff;
             border: 2px solid #404040;
             border-radius: 8px;
@@ -459,8 +464,8 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         }
         
         QComboBox:hover {
-            border-color: #4fc3f7;
-            background-color: #353535;
+            border-color: #606060;
+            background-color: #3e3e3e;
         }
         
         QComboBox::drop-down {
@@ -478,12 +483,12 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         }
         
         QComboBox QAbstractItemView {
-            background-color: #2d2d2d;
+            background-color: #2e2e2e;
             color: #ffffff;
             border: 2px solid #404040;
             border-radius: 8px;
             selection-background-color: #4fc3f7;
-            selection-color: #1a1a1a;
+            selection-color: #ffffff;
             padding: 4px;
         }
         
@@ -495,13 +500,13 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         }
         
         QComboBox QAbstractItemView::item:hover {
-            background-color: #404040;
-            color: #4fc3f7;
+            background-color: #3e3e3e;
+            color: #ffffff;
         }
         
         QComboBox QAbstractItemView::item:selected {
             background-color: #4fc3f7;
-            color: #1a1a1a;
+            color: #ffffff;
         }
         
         QRadioButton {
@@ -516,12 +521,12 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
             height: 18px;
             border: 2px solid #404040;
             border-radius: 10px;
-            background-color: #2d2d2d;
+            background-color: #2e2e2e;
         }
         
         QRadioButton::indicator:hover {
-            border-color: #4fc3f7;
-            background-color: #353535;
+            border-color: #606060;
+            background-color: #3e3e3e;
         }
         
         QRadioButton::indicator:checked {
@@ -535,25 +540,25 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         QSlider::groove:horizontal {
             border: 1px solid #404040;
             height: 8px;
-            background: #2d2d2d;
+            background: #2e2e2e;
             border-radius: 4px;
         }
         
         QSlider::handle:horizontal {
             background: #4fc3f7;
-            border: 2px solid #ffffff;
+            border: 2px solid #4fc3f7;
             width: 18px;
             margin: -5px 0;
             border-radius: 10px;
         }
         
         QSlider::handle:horizontal:hover {
-            background: #29b6f6;
-            border-color: #e0e0e0;
+            background: #81c784;
+            border-color: #81c784;
         }
         
         QListWidget {
-            background-color: #1f1f1f;
+            background-color: #2e2e2e;
             color: #ffffff;
             border: 2px solid #404040;
             border-radius: 10px;
@@ -564,43 +569,42 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         QListWidget::item {
             padding: 12px 16px;
             margin: 4px;
-            border: 1px solid #333333;
+            border: 1px solid #404040;
             border-radius: 8px;
-            background-color: #2d2d2d;
+            background-color: #2a2a2a;
             color: #ffffff;
             font-weight: 500;
         }
         
         QListWidget::item:hover {
-            background-color: #404040;
-            border-color: #4fc3f7;
-            color: #4fc3f7;
+            background-color: #3e3e3e;
+            border-color: #606060;
+            color: #ffffff;
         }
         
         QListWidget::item:selected {
             background-color: #4fc3f7;
-            color: #1a1a1a;
-            border-color: #29b6f6;
+            border-color: #4fc3f7;
             font-weight: 700;
         }
         
         QScrollBar:vertical {
-            background-color: #1f1f1f;
+            background-color: #2e2e2e;
             width: 12px;
             border-radius: 6px;
-            border: 1px solid #333333;
+            border: 1px solid #404040;
         }
         
         QScrollBar::handle:vertical {
-            background-color: #404040;
+            background-color: #4fc3f7;
             border-radius: 6px;
             min-height: 20px;
-            border: 1px solid #333333;
+            border: 1px solid #4fc3f7;
         }
         
         QScrollBar::handle:vertical:hover {
-            background-color: #4fc3f7;
-            border-color: #29b6f6;
+            background-color: #81c784;
+            border-color: #81c784;
         }
         
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
@@ -609,15 +613,15 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         }
         
         QStatusBar {
-            background-color: #1f1f1f;
-            color: #b0bec5;
+            background-color: #2a2a2a;
+            color: #ffffff;
             border-top: 2px solid #404040;
             font-size: 11px;
             font-weight: 500;
         }
         
         QStatusBar QLabel {
-            color: #b0bec5;
+            color: #ffffff;
             padding: 4px 8px;
         }
         
@@ -629,7 +633,7 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
             border-radius: 10px;
             margin-top: 8px;
             padding-top: 16px;
-            background-color: #1f1f1f;
+            background-color: #2e2e2e;
         }
         
         QGroupBox::title {
@@ -651,17 +655,17 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
             height: 16px;
             border: 2px solid #404040;
             border-radius: 4px;
-            background-color: #2d2d2d;
+            background-color: #2e2e2e;
         }
         
         QCheckBox::indicator:hover {
-            border-color: #4fc3f7;
-            background-color: #353535;
+            border-color: #606060;
+            background-color: #3e3e3e;
         }
         
         QCheckBox::indicator:checked {
             background-color: #4fc3f7;
-            border-color: #29b6f6;
+            border-color: #4fc3f7;
             image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAxMiAxMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEwIDNMNC41IDguNUwyIDYiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+);
         }
         
@@ -671,7 +675,7 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
             text-align: center;
             color: #ffffff;
             font-weight: 600;
-            background-color: #1f1f1f;
+            background-color: #2e2e2e;
         }
         
         QProgressBar::chunk {
@@ -682,12 +686,12 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         
         QTabWidget::pane {
             border: 2px solid #404040;
-            background-color: #1f1f1f;
+            background-color: #2e2e2e;
             border-radius: 10px;
         }
         
         QTabBar::tab {
-            background-color: #2d2d2d;
+            background-color: #2e2e2e;
             color: #ffffff;
             border: 2px solid #404040;
             border-bottom: none;
@@ -698,19 +702,19 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         }
         
         QTabBar::tab:hover {
-            background-color: #404040;
-            color: #4fc3f7;
+            background-color: #3e3e3e;
+            color: #ffffff;
         }
         
         QTabBar::tab:selected {
             background-color: #4fc3f7;
-            color: #1a1a1a;
+            color: #ffffff;
         }
         
         QToolTip {
-            background-color: #2d2d2d;
+            background-color: #2e2e2e;
             color: #ffffff;
-            border: 2px solid #4fc3f7;
+            border: 2px solid #404040;
             border-radius: 6px;
             padding: 6px 10px;
             font-size: 11px;
@@ -726,28 +730,39 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
         
+        # Left control panel
+        left_panel = QtWidgets.QWidget()
+        left_panel.setMinimumWidth(350)
+        left_panel.setMaximumWidth(400)
+        left_layout = QtWidgets.QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(10)
+        
+        # View mode selector
+        view_group = QtWidgets.QGroupBox("📊 View Mode")
+        view_layout = QtWidgets.QHBoxLayout(view_group)
+        
+        self.view_mode_group = QtWidgets.QButtonGroup(self)
+        
+        self.view_2d_radio = QtWidgets.QRadioButton("2D View")
+        self.view_2d_radio.setChecked(False)
+        self.view_mode_group.addButton(self.view_2d_radio, 0)
+        view_layout.addWidget(self.view_2d_radio)
+        
+        self.view_3d_radio = QtWidgets.QRadioButton("3D View")
+        self.view_3d_radio.setChecked(True)
+        self.view_mode_group.addButton(self.view_3d_radio, 1)
+        view_layout.addWidget(self.view_3d_radio)
+        
+        left_layout.addWidget(view_group)
+        
+        # Controls
         self.controls = Controls()
-        self.controls.setMinimumWidth(350)
-        self.controls.setMaximumWidth(400)
+        left_layout.addWidget(self.controls)
         
         self.view_container = QtWidgets.QWidget()
         view_layout = QtWidgets.QVBoxLayout(self.view_container)
         view_layout.setContentsMargins(0, 0, 0, 0)
-        
-        view_mode_group = QtWidgets.QGroupBox("View Mode")
-        view_mode_layout = QtWidgets.QHBoxLayout(view_mode_group)
-        self.radio_2d = QtWidgets.QRadioButton("2D View")
-        self.radio_3d = QtWidgets.QRadioButton("3D View")
-        self.radio_3d.setChecked(True)
-        
-        self.view_mode_group = QtWidgets.QButtonGroup()
-        self.view_mode_group.addButton(self.radio_2d, 0)
-        self.view_mode_group.addButton(self.radio_3d, 1)
-        self.view_mode_group.setExclusive(True)
-        
-        view_mode_layout.addWidget(self.radio_2d)
-        view_mode_layout.addWidget(self.radio_3d)
-        view_layout.addWidget(view_mode_group)
         
         self.view_stack = QtWidgets.QStackedWidget()
         self.view2d = GPU2DView()
@@ -772,7 +787,7 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         self.loading_label = QtWidgets.QLabel("Loading GPU Model...")
         self.loading_label.setStyleSheet("""
             QLabel {
-                color: #4fc3f7;
+                color: #ffffff;
                 font-size: 18px;
                 font-weight: bold;
             }
@@ -808,14 +823,14 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         self.component_panel.setMaximumWidth(450)
         right_panel_layout.addWidget(self.component_panel, 2)
         
-        main_layout.addWidget(self.controls)
+        main_layout.addWidget(left_panel)
         main_layout.addWidget(self.view_container, 1)
         main_layout.addWidget(right_panel)
         
         self.status_bar = self.statusBar()
         self.status_bar.setStyleSheet("""
             QStatusBar {
-                background-color: #252525;
+                background-color: #2a2a2a;
                 color: #ffffff;
                 border-top: 1px solid #404040;
             }
@@ -828,9 +843,6 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
             self.view3d.clear_highlight()
             self.status_label.setText("Component highlighting cleared")
         else:
-            if not self.radio_3d.isChecked():
-                self.radio_3d.setChecked(True)
-            
             self.view3d.highlight_component(component_id)
             self.status_label.setText(f"Highlighted: {component_id}")
     
@@ -853,13 +865,13 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         self.controls.changed_util.connect(self._on_utilization_changed)
         self.controls.changed_power_mv.connect(self._on_power_changed)
         
-        self.view_mode_group.buttonClicked.connect(self._on_view_mode_changed)
-        
         self.component_panel.component_selected.connect(self._on_component_highlighted)
         
         self.controls.changed_colormap.connect(self._on_colormap_changed)
         self.controls.import_json_clicked.connect(self._on_import_json)
         self.controls.export_json_clicked.connect(self._on_export_json)
+        
+        self.view_mode_group.buttonClicked.connect(self._on_view_mode_changed)
         
         if hasattr(self.visibility_panel, 'component_checkboxes'):
             for key, checkbox in self.visibility_panel.component_checkboxes.items():
@@ -906,8 +918,7 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
             
             QtCore.QTimer.singleShot(100, self._on_gpu_model_loaded)
             
-            current_view = "3d" if self.radio_3d.isChecked() else "2d"
-            self._connect_simulation_to_view(current_view)
+            self._connect_simulation_to_view("3d")
             
             self.sim.start()
             
@@ -936,17 +947,16 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         except:
             pass
             
-        current_view = "3d" if self.radio_3d.isChecked() else "2d"
-        self._connect_simulation_to_view(current_view)
+        self._connect_simulation_to_view("3d")
         
     def _on_view_mode_changed(self, button):
         view_index = self.view_mode_group.id(button)
         
-        if view_index == 1:  
+        if view_index == 1:
             self.view_stack.setCurrentIndex(1)
             self.status_label.setText("3D View Mode")
             self._connect_simulation_to_view("3d")
-        else:  
+        else:
             self.view_stack.setCurrentIndex(0)
             self.status_label.setText("2D View Mode")
             self._connect_simulation_to_view("2d")
@@ -978,8 +988,6 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
             self.view3d.clear_highlight()
             self.status_label.setText("Highlight cleared")
         else:
-            if not self.radio_3d.isChecked():
-                self.radio_3d.setChecked(True)
             self.view3d.highlight_component(component_name)
             self.status_label.setText(f"Selected: {component_name}")
             
@@ -1032,7 +1040,7 @@ class ModernGPUVisualizer(QtWidgets.QMainWindow):
         if not self.current_layout:
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export GPU Layout", f"{self.current_layout.name}.json", 
+            self, "Export GPU Layout", f"{self.current_layout.name}.json",
             "JSON Files (*.json)")
         if path:
             try:
@@ -1077,7 +1085,7 @@ def main():
     
     if not HAVE_GL:
         QtWidgets.QMessageBox.information(
-            window, "3D Rendering", 
+            window, "3D Rendering",
             "3D rendering requires PyOpenGL. Install with:\n\npip install PyOpenGL"
         )
     

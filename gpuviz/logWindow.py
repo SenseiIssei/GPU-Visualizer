@@ -52,9 +52,9 @@ class LogWindow(QtWidgets.QWidget):
         self.log_display.setFont(QtGui.QFont("Consolas", 9))
         self.log_display.setStyleSheet("""
             QTextEdit {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                border: 1px solid #3c3c3c;
+                background-color:
+                color:
+                border: 1px solid
             }
         """)
         layout.addWidget(self.log_display)
@@ -173,18 +173,18 @@ class LogWindowButton(QtWidgets.QPushButton):
         self.setStyleSheet("""
             QPushButton {
                 padding: 8px 16px;
-                background-color: #2d2d30;
-                color: #ffffff;
-                border: 1px solid #3c3c3c;
+                background-color:
+                color:
+                border: 1px solid
                 border-radius: 4px;
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #3c3c3c;
+                background-color:
             }
             QPushButton:checked {
-                background-color: #007acc;
-                border-color: #007acc;
+                background-color:
+                border-color:
             }
         """)
     

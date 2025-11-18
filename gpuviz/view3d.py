@@ -11,6 +11,7 @@ Overview:
 from typing import Optional, Dict
 from PySide6 import QtCore, QtGui, QtWidgets
 import math
+import time
 from .gpu_models import get_gpu_model
 from .componentHighlighter import ComponentType
 from OpenGL.GL import (
@@ -21,7 +22,7 @@ from OpenGL.GL import (
     glDisable, GL_BLEND, glBlendFunc, GL_SRC_ALPHA, GL_ONE, glDepthFunc, GL_LESS,
     glPushMatrix, glPopMatrix, glVertex2f, glVertex4f, GL_TRIANGLE_STRIP,
     GL_TRIANGLE_FAN, GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, GL_QUAD_STRIP,
-    GL_LINE_SMOOTH, glHint, GL_LINE_SMOOTH_HINT, GL_NICEST, glGenLists, 
+    GL_LINE_SMOOTH, glHint, GL_LINE_SMOOTH_HINT, GL_NICEST, glGenLists,
     glNewList, glEndList, glCallList, GL_COMPILE, glDeleteLists
 )
 from OpenGL.GLU import gluPerspective, gluLookAt
@@ -55,10 +56,11 @@ from .resources import COLORMAPS
 BaseGL = QOpenGLWidget if (HAVE_QOPENGLWIDGET and HAVE_GL) else QtWidgets.QWidget
 
 class GPU3DView(BaseGL):
-    def __init__(self, layout: Optional[GPULayout] = None, sim=None):
+    def __init__(self, layout: Optional[GPULayout] = None, sim=None, logger=None):
         super().__init__()
         self.layout = layout
         self.sim = sim
+        self.logger = logger
         self.gpu_model = None
 
         self.camera_distance = 100.0
@@ -90,8 +92,8 @@ class GPU3DView(BaseGL):
         self._max_framerate = 60
         
         visibility_flags = [
-            "show_chassis", "show_cooling", "show_pcb", "show_gpu_die", 
-            "show_vram", "show_power_delivery", "show_backplate", 
+            "show_chassis", "show_cooling", "show_pcb", "show_gpu_die",
+            "show_vram", "show_power_delivery", "show_backplate",
             "show_io_bracket", "show_microscopic", "show_traces"
         ]
         for flag in visibility_flags:
@@ -167,7 +169,7 @@ class GPU3DView(BaseGL):
     def set_component_visibility(self, component_type: str, visible: bool):
         visibility_map = {
             "chassis": "show_chassis",
-            "cooling": "show_cooling", 
+            "cooling": "show_cooling",
             "pcb": "show_pcb",
             "gpu_die": "show_gpu_die",
             "vram": "show_vram",
@@ -183,6 +185,7 @@ class GPU3DView(BaseGL):
             self.update()
     
     def set_performance_mode(self, mode: str):
+        old_mode = self.performance_mode
         self.performance_mode = mode
         
         if mode == "low":
@@ -193,25 +196,47 @@ class GPU3DView(BaseGL):
             self._max_framerate = 60
             self.show_microscopic = True
             self.show_traces = True
-        else:  # ultra
+        else:
             self._max_framerate = 60
             self.show_microscopic = True
             self.show_traces = True
+        
+        if self.logger and old_mode != mode:
+            self.logger.log(f"Performance mode changed from {old_mode} to {mode}", "INFO")
         
         self.update()
 
     def set_layout(self, layout: GPULayout):
         self.layout = layout
         
+        if hasattr(self, 'gpu_model') and self.gpu_model is not None:
+            try:
+                if hasattr(self.gpu_model, 'view3d_ref'):
+                    self.gpu_model.view3d_ref = None
+                self.gpu_model = None
+                import gc
+                gc.collect()
+            except Exception as e:
+                print(f"Warning: Failed to clean up old GPU model: {e}")
+        
         self.clear_caches()
         
         try:
             if hasattr(layout, 'name'):
                 self.gpu_model = get_gpu_model(layout.name, self)
+                if self.logger:
+                    self.logger.log_gpu_info(layout.name,
+                                           sum(len(sm.cores) for g in layout.gpcs for sm in g.sms),
+                                           len([sm for g in layout.gpcs for sm in g.sms]),
+                                           len(layout.gpcs))
             else:
                 self.gpu_model = get_gpu_model("RTX 4080 (Ada – illustrative)", self)
+                if self.logger:
+                    self.logger.log("Using default GPU model: RTX 4080", "INFO")
         except Exception as e:
             self.gpu_model = None
+            if self.logger:
+                self.logger.log_error(f"Failed to load GPU model: {e}")
         
         self.highlighted_component = None
         self.update()
@@ -225,6 +250,8 @@ class GPU3DView(BaseGL):
         glEnable(GL_DEPTH_TEST)
         glEnable(GL_LINE_SMOOTH)
         glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+        if self.logger:
+            self.logger.log("OpenGL initialized successfully", "INFO")
 
     def resizeGL(self, w, h):
         if not (HAVE_QOPENGLWIDGET and HAVE_GL): return
@@ -238,6 +265,7 @@ class GPU3DView(BaseGL):
     def paintGL(self):
         if not (HAVE_QOPENGLWIDGET and HAVE_GL): return
         
+        start_time = time.time()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
@@ -261,6 +289,10 @@ class GPU3DView(BaseGL):
                 glDisable(GL_BLEND)
         
         self._draw_gpu_smart_cached()
+        
+        render_time = (time.time() - start_time) * 1000
+        if self.logger and render_time > 16.67:
+            self.logger.log_performance("3D render frame", render_time)
 
     def _setup_camera(self):
         orbit_x_rad = math.radians(self.camera_orbit_x)
@@ -283,7 +315,7 @@ class GPU3DView(BaseGL):
             try:
                 current_state = self.get_component_visibility_state()
                 
-                if (not hasattr(self, '_gpu_cache_valid') or not self._gpu_cache_valid or 
+                if (not hasattr(self, '_gpu_cache_valid') or not self._gpu_cache_valid or
                     current_state != getattr(self, '_cached_component_state', None)):
                     
                     self._rebuild_gpu_cache()
@@ -318,22 +350,27 @@ class GPU3DView(BaseGL):
 
     def _rebuild_gpu_cache(self):
         try:
+            start_time = time.time()
+            
             if hasattr(self, '_gpu_display_list') and self._gpu_display_list:
                 glDeleteLists(self._gpu_display_list, 1)
             
-            # Create new display list
             self._gpu_display_list = glGenLists(1)
             glNewList(self._gpu_display_list, GL_COMPILE)
             
-            # Render the complete GPU model
             if hasattr(self, 'gpu_model') and self.gpu_model:
                 self.gpu_model.draw_complete_model(0)
             
             glEndList()
-            print("GPU cache rebuilt successfully")
+            
+            rebuild_time = (time.time() - start_time) * 1000
+            if self.logger:
+                self.logger.log_performance("GPU cache rebuild", rebuild_time)
+                self.logger.log("GPU cache rebuilt successfully", "INFO")
             
         except Exception as e:
-            print(f"Failed to rebuild GPU cache: {e}")
+            if self.logger:
+                self.logger.log_error(f"Failed to rebuild GPU cache: {e}")
             self._gpu_cache_valid = False
 
     def _draw_generic_ultra_gpu(self):
@@ -364,7 +401,7 @@ class GPU3DView(BaseGL):
         pcb_thickness = 0.15
         
         glColor4f(0.1, 0.25, 0.1, 1.0)
-        self._draw_3d_box(-pcb_length/2, -pcb_width/2, -pcb_thickness/2, 
+        self._draw_3d_box(-pcb_length/2, -pcb_width/2, -pcb_thickness/2,
                          pcb_length, pcb_width, pcb_thickness)
         
         if self.show_traces:
@@ -374,7 +411,7 @@ class GPU3DView(BaseGL):
             self._draw_microscopic_components(pcb_length, pcb_width)
 
     def _draw_pcb_traces(self, pcb_length, pcb_width):
-        glColor4f(0.7, 0.6, 0.3, 0.8)  # Copper color
+        glColor4f(0.7, 0.6, 0.3, 0.8)
         glLineWidth(0.1)
         
         for i in range(20):
@@ -421,7 +458,7 @@ class GPU3DView(BaseGL):
         die_thickness = 0.08
         
         glColor4f(0.2, 0.2, 0.3, 1.0)
-        self._draw_3d_box(-die_size/2, -die_size/2, pkg_thickness, 
+        self._draw_3d_box(-die_size/2, -die_size/2, pkg_thickness,
                          die_size, die_size, die_thickness)
         
         if self.detail_level == "ultra":
@@ -475,7 +512,7 @@ class GPU3DView(BaseGL):
         glColor4f(0.8, 0.8, 0.7, 1.0)
         glBegin(GL_LINES)
         glVertex3f(x1, y1, z1)
-        glVertex3f((x1+x2)/2, (y1+y2)/2, max(z1, z2) + 0.1)  # Arc
+        glVertex3f((x1+x2)/2, (y1+y2)/2, max(z1, z2) + 0.1)
         glVertex3f((x1+x2)/2, (y1+y2)/2, max(z1, z2) + 0.1)
         glVertex3f(x2, y2, z2)
         glEnd()
@@ -505,7 +542,6 @@ class GPU3DView(BaseGL):
             glColor4f(0.85, 0.85, 0.9, 1.0)
             self._draw_3d_box(x, -5.5, 0.5, fin_thickness, 11, 4)
         
-        # Heat pipes
         pipe_color = (0.8, 0.5, 0.2, 1.0)
         for y in [-3, 0, 3]:
             glColor4f(*pipe_color)
